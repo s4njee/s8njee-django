@@ -1,0 +1,135 @@
+{% extends "albums/base.html" %}
+{% block title %}Upload to {{ album.title }}{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem">Upload to "{{ album.title }}"</h1>
+
+<div id="upload-area" style="border:2px dashed #333;border-radius:8px;padding:3rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:1.5rem"
+     ondragover="event.preventDefault();this.style.borderColor='#2563eb'"
+     ondragleave="this.style.borderColor='#333'"
+     ondrop="event.preventDefault();this.style.borderColor='#333';addFiles(event.dataTransfer.files)"
+     onclick="document.getElementById('file-input').click()">
+  <p style="color:#888;font-size:1.1rem">Drop photos here or click to select</p>
+  <input type="file" id="file-input" multiple accept="image/*" style="display:none" onchange="addFiles(this.files)">
+</div>
+
+<div id="queue" style="margin-bottom:1.5rem"></div>
+
+<div id="controls" style="display:none;gap:1rem;align-items:center;margin-bottom:1.5rem">
+  <button id="start-btn" class="btn" onclick="startUpload()">Upload <span id="file-count"></span> photos</button>
+  <button class="btn" style="background:#333" onclick="clearQueue()">Clear</button>
+  <span id="progress-text" style="color:#888;margin-left:1rem"></span>
+</div>
+
+<div id="done-msg" style="display:none">
+  <p style="color:#4ade80;margin-bottom:1rem">✓ All photos uploaded!</p>
+  <a href="{% url 'album_detail' album.pk %}" class="btn">View Album</a>
+</div>
+
+<script>
+const UPLOAD_URL = "{% url 'photo_upload_single' album.pk %}";
+const CSRF = "{{ csrf_token }}";
+let queue = [];
+let uploading = false;
+
+function addFiles(fileList) {
+  for (const f of fileList) {
+    if (!f.type.startsWith("image/")) continue;
+    const id = crypto.randomUUID();
+    queue.push({ id, file: f, status: "pending" });
+    renderItem(id, f);
+  }
+  updateControls();
+}
+
+function renderItem(id, file) {
+  const el = document.createElement("div");
+  el.id = "item-" + id;
+  el.style.cssText = "display:flex;align-items:center;gap:1rem;padding:.5rem 0;border-bottom:1px solid #222";
+  el.innerHTML = `
+    <img src="${URL.createObjectURL(file)}" style="width:48px;height:48px;object-fit:cover;border-radius:4px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</div>
+      <div class="progress-bar" style="height:4px;background:#222;border-radius:2px;margin-top:4px;overflow:hidden">
+        <div class="progress-fill" style="height:100%;width:0%;background:#2563eb;transition:width .2s"></div>
+      </div>
+    </div>
+    <span class="status" style="font-size:.8rem;color:#888">Pending</span>
+  `;
+  document.getElementById("queue").appendChild(el);
+}
+
+function updateControls() {
+  const pending = queue.filter(q => q.status === "pending").length;
+  const ctrl = document.getElementById("controls");
+  ctrl.style.display = pending > 0 && !uploading ? "flex" : pending > 0 ? "flex" : "none";
+  document.getElementById("file-count").textContent = queue.filter(q => q.status === "pending" || q.status === "uploading").length;
+}
+
+async function startUpload() {
+  uploading = true;
+  document.getElementById("start-btn").disabled = true;
+  document.getElementById("start-btn").style.opacity = "0.5";
+  document.getElementById("upload-area").style.display = "none";
+
+  let done = 0;
+  const total = queue.filter(q => q.status === "pending").length;
+
+  for (const item of queue) {
+    if (item.status !== "pending") continue;
+    item.status = "uploading";
+    const el = document.getElementById("item-" + item.id);
+    const statusEl = el.querySelector(".status");
+    const fillEl = el.querySelector(".progress-fill");
+    statusEl.textContent = "Uploading…";
+    statusEl.style.color = "#2563eb";
+
+    try {
+      await uploadFile(item.file, (pct) => {
+        fillEl.style.width = pct + "%";
+      });
+      item.status = "done";
+      fillEl.style.width = "100%";
+      fillEl.style.background = "#4ade80";
+      statusEl.textContent = "✓";
+      statusEl.style.color = "#4ade80";
+    } catch (err) {
+      item.status = "error";
+      fillEl.style.background = "#ef4444";
+      statusEl.textContent = "Failed";
+      statusEl.style.color = "#ef4444";
+    }
+
+    done++;
+    document.getElementById("progress-text").textContent = done + " / " + total + " complete";
+  }
+
+  uploading = false;
+  document.getElementById("done-msg").style.display = "block";
+  document.getElementById("controls").style.display = "none";
+}
+
+function uploadFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", UPLOAD_URL);
+    xhr.setRequestHeader("X-CSRFToken", CSRF);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100));
+    };
+    xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(xhr.status));
+    xhr.onerror = () => reject(new Error("Network error"));
+
+    const fd = new FormData();
+    fd.append("image", file);
+    xhr.send(fd);
+  });
+}
+
+function clearQueue() {
+  queue = queue.filter(q => q.status === "done");
+  document.getElementById("queue").innerHTML = "";
+  updateControls();
+}
+</script>
+{% endblock %}

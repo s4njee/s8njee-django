@@ -1,0 +1,79 @@
+{% extends "albums/base.html" %}
+{% block title %}{{ album.title }}{% endblock %}
+{% block content %}
+<div class="album-header">
+  <div>
+    <h1>{{ album.title }}</h1>
+    {% if album.description %}<p style="color:#999;margin-top:.3rem">{{ album.description }}</p>{% endif %}
+  </div>
+  {% if user.is_authenticated %}<a href="{% url 'photo_upload' album.pk %}" class="btn">+ Upload Photos</a>{% endif %}
+</div>
+{% if album.photos.all %}
+<div class="grid">
+  {% for photo in album.photos.all %}
+  <div class="card" style="cursor:pointer" onclick="openLightbox({{ forloop.counter0 }})">
+    <img src="{{ photo.thumbnail.url|default:photo.image.url }}" alt="{{ photo.caption }}" loading="lazy">
+    {% if photo.caption %}<div class="card-body">{{ photo.caption }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:1000;cursor:pointer" onclick="handleLightboxClick(event)">
+  <div style="position:absolute;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:1001" onclick="closeLightbox()">&times;</div>
+  <div id="lb-caption" style="position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);color:#ccc;font-size:.9rem;text-align:center;z-index:1001"></div>
+  <div id="lb-counter" style="position:absolute;top:1rem;left:1.5rem;color:#888;font-size:.85rem;z-index:1001"></div>
+  <img id="lb-img" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:90vw;max-height:85vh;object-fit:contain" src="" alt="">
+</div>
+
+<script>
+const photos = [
+  {% for photo in album.photos.all %}
+  { url: "{{ photo.image.url }}", caption: "{{ photo.caption|escapejs }}" },
+  {% endfor %}
+];
+let currentIndex = 0;
+
+function openLightbox(i) {
+  currentIndex = i;
+  showPhoto();
+  document.getElementById('lightbox').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function showPhoto() {
+  const p = photos[currentIndex];
+  document.getElementById('lb-img').src = p.url;
+  document.getElementById('lb-caption').textContent = p.caption;
+  document.getElementById('lb-counter').textContent = (currentIndex + 1) + ' / ' + photos.length;
+}
+
+function handleLightboxClick(e) {
+  if (e.target.tagName === 'DIV' || e.target.id === 'lb-img') {
+    const rect = document.getElementById('lightbox').getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x > rect.width / 2) {
+      currentIndex = (currentIndex + 1) % photos.length;
+    } else {
+      currentIndex = (currentIndex - 1 + photos.length) % photos.length;
+    }
+    showPhoto();
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('lightbox').style.display === 'none') return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowRight') { currentIndex = (currentIndex + 1) % photos.length; showPhoto(); }
+  if (e.key === 'ArrowLeft') { currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto(); }
+});
+</script>
+{% else %}
+<div class="empty">No photos yet. Upload some!</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,123 @@
+[
+{
+  "model": "posts.post",
+  "pk": 1,
+  "fields": {
+    "title": "Test",
+    "slug": "test",
+    "content": "test post",
+    "created_at": "2026-02-08T19:57:12Z",
+    "updated_at": "2026-02-08T19:57:34.086Z",
+    "published": true
+  }
+},
+{
+  "model": "posts.post",
+  "pk": 2,
+  "fields": {
+    "title": "Post Superbowl",
+    "slug": "post-superbowl",
+    "content": "I didn't really watch all of the super bowl today. I've been playing cyberpunk 2077, waiting anxiously to get the 911 so I can continue to self-insert myself as Johnny Silverhand.\r\n\r\nThis is a bit of a contrived post. I am trying to build out this blog site, but it's somewhat pointless if there's no content on it. So I'm writing a bit so that there will be some material on the site, that I can use to style it out.\r\n\r\nI'm not really advertising it, but I suppose I have posted the link before, and it's not really hidden or anything. I'm not sure I trust the numbers I see on cloudflare, because they are often wildly different from other sources like google analytics. But even those numbers can be confusing. I forget which browser simply doesn't participate in google analytics, and you won't see those as visitors. But I'm a bit of a newbie when it comes to website analytics so I might have never even set up the google analytics correctly.\r\n\r\nBut idk maybe the numbers are all wrong. It's not like there's some global conspiracy to alter my social media numbers to make it seem like... ahahah, who's crazy now?",
+    "created_at": "2026-02-09T06:56:52Z",
+    "updated_at": "2026-02-09T06:57:20.299Z",
+    "published": true
+  }
+},
+{
+  "model": "albums.album",
+  "pk": "1f752940-ca5a-484c-a580-51907fb42cf3",
+  "fields": {
+    "title": "teest",
+    "description": "",
+    "created_at": "2026-02-09T23:43:05.755Z",
+    "updated_at": "2026-02-09T23:43:05.755Z"
+  }
+},
+{
+  "model": "albums.album",
+  "pk": "3055bfc2-6b54-44bb-a6fb-b0bdade0f2ca",
+  "fields": {
+    "title": "test",
+    "description": "",
+    "created_at": "2026-02-09T07:17:29.716Z",
+    "updated_at": "2026-02-09T07:17:29.716Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "1891e669-1847-42be-8c08-bfc0fa8b41b8",
+  "fields": {
+    "album": "3055bfc2-6b54-44bb-a6fb-b0bdade0f2ca",
+    "image": "photos/2026/02/09/IMG_5311.jpg",
+    "thumbnail": "photos/2026/03/12/thumbs/thumb_1891e669-1847-42be-8c08-bfc0fa8b41b8.jpg",
+    "caption": "",
+    "uploaded_at": "2026-02-09T07:18:06.888Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "31b45d3e-da5e-40f6-b3dd-8df1938e30f6",
+  "fields": {
+    "album": "1f752940-ca5a-484c-a580-51907fb42cf3",
+    "image": "photos/2026/02/09/Screenshot_2025-05-05_at_5.25.52AM.png",
+    "thumbnail": "",
+    "caption": "",
+    "uploaded_at": "2026-02-09T23:45:45.868Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "32c68fc1-4570-4ba6-beec-15b31ed311a7",
+  "fields": {
+    "album": "3055bfc2-6b54-44bb-a6fb-b0bdade0f2ca",
+    "image": "photos/2026/02/09/IMG_5311.png",
+    "thumbnail": "photos/2026/03/12/thumbs/thumb_32c68fc1-4570-4ba6-beec-15b31ed311a7.png",
+    "caption": "",
+    "uploaded_at": "2026-02-09T07:18:06.889Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "4aa93e16-933e-475b-a097-28023d8937c4",
+  "fields": {
+    "album": "1f752940-ca5a-484c-a580-51907fb42cf3",
+    "image": "photos/2026/02/09/Screenshot_2025-05-05_at_5.26.37AM.png",
+    "thumbnail": "",
+    "caption": "",
+    "uploaded_at": "2026-02-09T23:45:45.711Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "9c10f387-03a9-4554-a88b-9b5370b5f46b",
+  "fields": {
+    "album": "3055bfc2-6b54-44bb-a6fb-b0bdade0f2ca",
+    "image": "photos/2026/02/09/IMG_5306.png",
+    "thumbnail": "photos/2026/03/12/thumbs/thumb_9c10f387-03a9-4554-a88b-9b5370b5f46b.png",
+    "caption": "",
+    "uploaded_at": "2026-02-09T07:18:06.887Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "cec7435c-f864-44ed-a9a4-fdca9dbc24fb",
+  "fields": {
+    "album": "3055bfc2-6b54-44bb-a6fb-b0bdade0f2ca",
+    "image": "photos/2026/02/09/IMG_5306.jpg",
+    "thumbnail": "photos/2026/03/12/thumbs/thumb_cec7435c-f864-44ed-a9a4-fdca9dbc24fb.jpg",
+    "caption": "",
+    "uploaded_at": "2026-02-09T07:18:06.886Z"
+  }
+},
+{
+  "model": "albums.photo",
+  "pk": "e7802b9d-8851-4cdb-b190-6fba10fad4d2",
+  "fields": {
+    "album": "1f752940-ca5a-484c-a580-51907fb42cf3",
+    "image": "photos/2026/02/09/Screenshot_2025-05-05_at_5.27.13AM.png",
+    "thumbnail": "",
+    "caption": "",
+    "uploaded_at": "2026-02-09T23:45:45.535Z"
+  }
+}
+]

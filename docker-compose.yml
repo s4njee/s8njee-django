@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:17-alpine
+    env_file: ./db.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U s8njee"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: ./blog
+    env_file: ./blog/.env
+    volumes:
+      - app-static:/app/staticfiles
+      - app-media:/app/media
+    ports:
+      - "127.0.0.1:8000:8000"
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    environment:
+      SERVER_NAME: ${SERVER_NAME:-blog.s8njee.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - app-static:/app/staticfiles:ro
+      - app-media:/app/media:ro
+      - ${SSL_CERT_PATH:-./nginx/ssl/cert.pem}:/etc/ssl/cloudflare/cert.pem:ro
+      - ${SSL_KEY_PATH:-./nginx/ssl/key.pem}:/etc/ssl/cloudflare/key.pem:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  app-static:
+  app-media:

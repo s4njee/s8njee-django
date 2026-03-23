@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Blog{% endblock %}
+
+{% block content %}
+{% for post in posts %}
+<article>
+    <h2><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h2>
+    <p class="meta">{{ post.created_at|date:"F j, Y" }}</p>
+    {{ post.content|linebreaks|truncatewords_html:150 }}
+</article>
+{% empty %}
+<p>No posts yet.</p>
+{% endfor %}
+
+{% if is_paginated %}
+<div class="pagination">
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}">← Previous</a>
+    {% endif %}
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">Next →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

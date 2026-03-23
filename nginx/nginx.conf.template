@@ -1,0 +1,39 @@
+resolver 127.0.0.11 valid=10s;
+
+server {
+    listen 80;
+    server_name ${SERVER_NAME};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${SERVER_NAME};
+
+    ssl_certificate /etc/ssl/cloudflare/cert.pem;
+    ssl_certificate_key /etc/ssl/cloudflare/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 500M;
+
+    location /static/ {
+        alias /app/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /media/ {
+        alias /app/media/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        proxy_pass http://web:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: s8njee-web
+resources:
+  - namespace.yaml
+  - ../../base
+  - configmap.yaml
+  - secret.yaml
+  - ingress.yaml
+images:
+  - name: s8njee-web
+    newName: ghcr.io/replace-me/s8njee-web
+    newTag: latest

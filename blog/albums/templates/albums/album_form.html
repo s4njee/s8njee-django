@@ -1,0 +1,15 @@
+{% extends "albums/base.html" %}
+{% block title %}New Album{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem">New Album</h1>
+<form method="post" style="max-width:500px">
+  {% csrf_token %}
+  {% for field in form %}
+  <div class="form-group">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn">Create Album</button>
+</form>
+{% endblock %}

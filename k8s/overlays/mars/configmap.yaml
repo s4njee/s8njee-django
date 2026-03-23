@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s8njee-web-config
+data:
+  DEBUG: "False"
+  ENABLE_SSL: "False"
+  ALLOWED_HOSTS: "192.168.1.156,localhost,127.0.0.1"
+  CSRF_TRUSTED_ORIGINS: "http://192.168.1.156:4201"
+  DB_ENGINE: "django.db.backends.postgresql"
+  DB_NAME: "s8njee"
+  DB_HOST: "s8njee-postgres"
+  DB_PORT: "5432"
+  AWS_STORAGE_BUCKET_NAME: "s8njee-photoblog"
+  AWS_S3_REGION_NAME: "us-east-1"

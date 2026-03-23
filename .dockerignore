@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.*
+*.env
+*.env.*
+.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.dump
+*.sql
+media/
+staticfiles/
+archive/
+nginx/ssl/
