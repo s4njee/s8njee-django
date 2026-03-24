@@ -7,3 +7,15 @@ spec:
     spec:
       imagePullSecrets:
         - name: registry-s8njee-pull
+      containers:
+        - name: web
+          readinessProbe:
+            httpGet:
+              httpHeaders:
+                - name: Host
+                  value: blog.s8njee.com
+          livenessProbe:
+            httpGet:
+              httpHeaders:
+                - name: Host
+                  value: blog.s8njee.com
