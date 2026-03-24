@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -36,3 +37,73 @@ class PostMarkdownRenderingTests(TestCase):
             '<a href="https://example.com" rel="noopener noreferrer">link</a>',
             html=True,
         )
+
+
+class PostEditorTests(TestCase):
+    def setUp(self):
+        self.staff_user = get_user_model().objects.create_user(
+            username="editor",
+            password="testpass123",
+            is_staff=True,
+        )
+
+    def test_editor_requires_login(self):
+        response = self.client.get(reverse("post_editor_new"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+    def test_staff_can_create_post_from_editor(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("post_editor_new"),
+            {
+                "title": "Editor Post",
+                "slug": "",
+                "content": "# Hello\n\nThis came from the editor.",
+                "published": "on",
+            },
+        )
+
+        post = Post.objects.get(title="Editor Post")
+        self.assertRedirects(response, f"{post.get_editor_url()}?saved=1")
+        self.assertEqual(post.slug, "editor-post")
+        self.assertTrue(post.published)
+
+    def test_staff_can_preview_markdown(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("post_editor_preview"),
+            data='{"content":"# Preview\\n\\n**Bold** text"}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("<h1>Preview</h1>", response.json()["html"])
+        self.assertIn("<strong>Bold</strong>", response.json()["html"])
+
+    def test_staff_can_edit_existing_post(self):
+        self.client.force_login(self.staff_user)
+        post = Post.objects.create(
+            title="Existing",
+            slug="existing",
+            content="Old content",
+            published=False,
+        )
+
+        response = self.client.post(
+            reverse("post_editor_edit", kwargs={"slug": post.slug}),
+            {
+                "title": "Existing",
+                "slug": "existing",
+                "content": "Updated **content**",
+                "published": "on",
+            },
+        )
+
+        post.refresh_from_db()
+        self.assertRedirects(response, f"{post.get_editor_url()}?saved=1")
+        self.assertEqual(post.content, "Updated **content**")
+        self.assertTrue(post.published)

@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}{% if post %}Edit {{ post.title }}{% else %}New Post{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .editor-page {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+        gap: 1.5rem;
+    }
+    .editor-panel,
+    .preview-panel,
+    .editor-help {
+        background: #171717;
+        border: 1px solid #2b2b2b;
+        border-radius: 0.9rem;
+    }
+    .editor-panel,
+    .preview-panel {
+        padding: 1.25rem;
+    }
+    .editor-help {
+        margin-top: 1.25rem;
+        padding: 1rem 1.25rem;
+    }
+    .editor-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: baseline;
+        margin-bottom: 1rem;
+    }
+    .editor-header h1,
+    .preview-panel h2 {
+        margin: 0;
+    }
+    .editor-meta {
+        color: #999;
+        font-size: 0.92rem;
+    }
+    .editor-form {
+        display: grid;
+        gap: 1rem;
+    }
+    .editor-form label {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #f1f1f1;
+        font-weight: 600;
+    }
+    .editor-form input[type="text"],
+    .editor-form textarea {
+        width: 100%;
+        border: 1px solid #343434;
+        border-radius: 0.7rem;
+        background: #0f0f0f;
+        color: #f2f2f2;
+        padding: 0.85rem 0.95rem;
+        font: inherit;
+    }
+    .editor-form textarea {
+        resize: vertical;
+        min-height: 26rem;
+        line-height: 1.65;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    .editor-form input:focus,
+    .editor-form textarea:focus {
+        outline: 2px solid #6d8cff;
+        outline-offset: 1px;
+        border-color: #6d8cff;
+    }
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .checkbox-row input {
+        width: 1rem;
+        height: 1rem;
+    }
+    .checkbox-row label {
+        margin: 0;
+        font-weight: 500;
+    }
+    .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    .button,
+    .button-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        text-decoration: none;
+        font-weight: 600;
+        border: 1px solid #3b3b3b;
+        cursor: pointer;
+    }
+    .button {
+        background: #f0f0f0;
+        color: #111;
+    }
+    .button-secondary {
+        background: transparent;
+        color: #e0e0e0;
+    }
+    .save-note {
+        color: #7fd0a5;
+        font-size: 0.95rem;
+    }
+    .field-error,
+    .non-field-errors {
+        color: #ff9b9b;
+        font-size: 0.92rem;
+        margin-top: 0.35rem;
+    }
+    .preview-meta {
+        color: #999;
+        font-size: 0.9rem;
+        margin: 0.35rem 0 1rem;
+    }
+    .preview-shell {
+        min-height: 26rem;
+    }
+    .preview-placeholder {
+        color: #888;
+        font-style: italic;
+    }
+    .editor-help ul {
+        margin: 0.75rem 0 0 1.25rem;
+    }
+    .editor-help li {
+        margin-bottom: 0.35rem;
+    }
+    @media (max-width: 860px) {
+        .editor-page {
+            grid-template-columns: 1fr;
+        }
+        .preview-shell {
+            min-height: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="editor-header">
+        <div>
+            <h1>{% if post %}Edit Post{% else %}New Post{% endif %}</h1>
+            <p class="editor-meta">
+                Staff-only Markdown editor{% if post %} for <strong>{{ post.title }}</strong>{% endif %}
+            </p>
+        </div>
+        {% if post %}
+            <a class="button-secondary" href="{{ post.get_absolute_url }}">View published post</a>
+        {% endif %}
+    </div>
+
+    <div class="editor-page">
+        <section class="editor-panel">
+            <form method="post" class="editor-form" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div class="non-field-errors">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div>
+                    <label for="{{ form.title.id_for_label }}">Title</label>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                        <div class="field-error">{{ form.title.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.slug.id_for_label }}">Slug</label>
+                    {{ form.slug }}
+                    {% if form.slug.errors %}
+                        <div class="field-error">{{ form.slug.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.content.id_for_label }}">Markdown</label>
+                    {{ form.content }}
+                    {% if form.content.errors %}
+                        <div class="field-error">{{ form.content.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="checkbox-row">
+                    {{ form.published }}
+                    <label for="{{ form.published.id_for_label }}">Published</label>
+                </div>
+
+                <div class="action-row">
+                    <button class="button" type="submit">Save Post</button>
+                    {% if saved %}
+                        <span class="save-note">Saved.</span>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <aside class="preview-panel">
+            <h2>Live Preview</h2>
+            <p class="preview-meta">Rendered with the same Markdown sanitizer the public site uses.</p>
+            <div class="preview-shell post-content" id="preview-shell">
+                {% if preview_html %}
+                    {{ preview_html }}
+                {% else %}
+                    <p class="preview-placeholder">Start typing to preview your post.</p>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+
+    <section class="editor-help">
+        <strong>Quick notes</strong>
+        <ul>
+            <li>Leave the slug blank and it will be generated from the title.</li>
+            <li>Use fenced code blocks, headings, lists, links, and images with normal Markdown syntax.</li>
+            <li>Scripts and unsafe embeds are stripped from rendered output.</li>
+        </ul>
+    </section>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (() => {
+        const contentField = document.getElementById("{{ form.content.id_for_label }}");
+        const previewShell = document.getElementById("preview-shell");
+        const previewUrl = "{% url 'post_editor_preview' %}";
+        const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value;
+        if (!contentField || !previewShell || !csrfToken) return;
+
+        let timerId = null;
+        let requestCounter = 0;
+
+        const renderPlaceholder = () => {
+            previewShell.innerHTML = '<p class="preview-placeholder">Start typing to preview your post.</p>';
+        };
+
+        const updatePreview = async () => {
+            const markdown = contentField.value;
+            if (!markdown.trim()) {
+                renderPlaceholder();
+                return;
+            }
+
+            const currentRequest = ++requestCounter;
+            try {
+                const response = await fetch(previewUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken,
+                    },
+                    body: JSON.stringify({ content: markdown }),
+                });
+                if (!response.ok) {
+                    throw new Error("Preview request failed");
+                }
+                const payload = await response.json();
+                if (currentRequest !== requestCounter) return;
+                previewShell.innerHTML = payload.html || "";
+                if (!previewShell.innerHTML.trim()) {
+                    renderPlaceholder();
+                }
+            } catch (error) {
+                if (currentRequest !== requestCounter) return;
+                previewShell.innerHTML = '<p class="preview-placeholder">Preview unavailable right now.</p>';
+            }
+        };
+
+        const queuePreview = () => {
+            window.clearTimeout(timerId);
+            timerId = window.setTimeout(updatePreview, 180);
+        };
+
+        contentField.addEventListener("input", queuePreview);
+    })();
+</script>
+{% endblock %}

@@ -89,6 +89,7 @@
             .sidebar { width: 100%; }
         }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header>
@@ -96,6 +97,9 @@
         <nav>
             <a href="{% url 'post_list' %}">Blog</a>
             <a href="{% url 'album_list' %}">Photos</a>
+            {% if user.is_authenticated and user.is_staff %}
+                <a href="{% url 'post_editor_new' %}">Write</a>
+            {% endif %}
         </nav>
     </header>
     <div class="layout">
@@ -118,5 +122,6 @@
             </ul>
         </aside>
     </div>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

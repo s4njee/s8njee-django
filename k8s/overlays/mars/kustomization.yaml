@@ -14,4 +14,4 @@ patches:
 images:
   - name: s8njee-web
     newName: 192.168.1.156:5001/s8njee-web
-    newTag: 20260323-184500-amd64
+    newTag: 20260323-193649-amd64

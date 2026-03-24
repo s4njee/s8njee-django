@@ -9,14 +9,13 @@ Single Django site for the blog and photo gallery.
 
 ## Prerequisites
 
-- Docker and Docker Compose for production
 - Python 3.13 and `uv` for local development
-- A DNS record pointing your chosen hostname to the server
-- TLS certificate and key for that hostname
+- Docker for building container images
+- A Kubernetes cluster with Argo CD for deployment
 
 ## Environment Files
 
-Copy the example files and fill in real values before deploying:
+Copy the example files and fill in real values for local development:
 
 ```bash
 cp .env.example .env
@@ -24,9 +23,9 @@ cp blog/.env.example blog/.env
 cp db.env.example db.env
 ```
 
-- `.env` configures Docker Compose and nginx host-level values.
 - `blog/.env` configures Django.
 - `db.env` configures PostgreSQL.
+- `.env` is legacy host-level config and is not used by the current Kubernetes deployment flow.
 
 Generate a Django secret key with:
 
@@ -51,37 +50,38 @@ uv run python manage.py runserver
 
 The site will be available at [http://127.0.0.1:8000/](http://127.0.0.1:8000/) with photos under [http://127.0.0.1:8000/photos/](http://127.0.0.1:8000/photos/).
 
-## Production Deployment
+## Kubernetes Deployment
 
-The production path is Docker Compose with three services: `db`, `web`, and `nginx`.
+Production deployment is Kubernetes-first and uses:
 
-1. Copy the example env files shown above.
-2. Put your TLS assets in the paths referenced by `.env`.
-3. Set production values in `blog/.env`:
-   - `DEBUG=False`
-   - `ALLOWED_HOSTS=<your hostname>`
-   - `CSRF_TRUSTED_ORIGINS=https://<your hostname>`
-   - PostgreSQL credentials matching `db.env`
-   - Optional S3 credentials if you want media in S3 instead of the local Docker volume
-4. Build and start the stack:
+- Kustomize manifests in `k8s/base` and `k8s/overlays/*`
+- Argo CD `Application` manifests in `k8s/argocd`
+- Bitnami Sealed Secrets for encrypted secret material
+- a persistent PostgreSQL PVC on `mars` named `s8njee-postgres-data`
 
-```bash
-docker compose up -d --build
-```
+The app container still uses `blog/start.sh` as the release entrypoint. On startup it runs migrations, loads starter content only on an empty database, collects static files, and then starts Uvicorn.
 
-`blog/start.sh` is the canonical release entrypoint. On container startup it runs migrations, loads starter content only on an empty site, collects static files, and then starts Uvicorn.
+## Deploying To Mars
 
-Create the admin user if needed:
+The current `mars` cluster is synced by Argo CD from [s8njee-django](https://github.com/s4njee/s8njee-django).
 
-```bash
-docker compose exec web uv run python manage.py createsuperuser
-```
+1. Build and push a new image.
+2. Update the image tag in [`k8s/overlays/mars/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/kustomization.yaml).
+3. Commit and push to `main`.
+4. Let Argo CD sync `s8njee-web-mars`.
+
+Important: do not delete or rename the PostgreSQL PVC `s8njee-postgres-data` unless you are intentionally replacing the database.
+
+Detailed deployment guidance lives in:
+
+- [DEPLOY.md](/Users/sanjee/Documents/projects/s8njee-web/DEPLOY.md)
+- [k8s/README.md](/Users/sanjee/Documents/projects/s8njee-web/k8s/README.md)
 
 ## Storage Modes
 
-- Leave the AWS variables blank to store uploaded media in the Docker `app-media` volume.
-- Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`, and `AWS_S3_REGION_NAME` in `blog/.env` to store uploaded media in S3.
-- Static files are always collected into `app-static` for nginx to serve.
+- For Kubernetes, media is expected to live in S3.
+- Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`, and `AWS_S3_REGION_NAME` in the deployed secret material to store uploaded media in S3.
+- Static files are collected during container startup.
 
 ## Seed Data
 
@@ -96,18 +96,19 @@ The site uses Django templates with vanilla CSS. There is no separate Webpack or
 ## Updating
 
 ```bash
-docker compose up -d --build
+git push origin main
 ```
 
-## Logs
+After pushing, Argo CD reconciles the Kubernetes manifests from Git.
+
+## Runtime Checks
 
 ```bash
-docker compose logs -f
-docker compose logs -f web
-docker compose logs -f nginx
-docker compose logs -f db
+kubectl --context=mars get application s8njee-web-mars -n argocd
+kubectl --context=mars get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
+kubectl --context=mars rollout status deploy/s8njee-web -n default
 ```
 
 ## Deployment Checklist
 
-See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for SSL, credentials, media storage, migrations, static collection, and admin bootstrap steps.
+See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for general release checks, [DEPLOY.md](/Users/sanjee/Documents/projects/s8njee-web/DEPLOY.md) for safe `mars` deployment steps, and [k8s/README.md](/Users/sanjee/Documents/projects/s8njee-web/k8s/README.md) for manifest layout and Argo CD details.
