@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: s8njee-web-mars
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/s4njee/s8njee-django.git
+    targetRevision: main
+    path: k8s/overlays/mars
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

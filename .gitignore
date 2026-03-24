@@ -19,4 +19,4 @@ nginx/ssl/*.pem
 nginx/ssl/*.key
 .pytest_cache/
 .mypy_cache/
-k8s/overlays/mars/secret.env
+k8s/overlays/*/secret.unsealed.yaml

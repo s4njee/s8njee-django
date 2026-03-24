@@ -4,15 +4,10 @@ namespace: default
 resources:
   - ../../base
   - configmap.yaml
+  - sealed-secret.yaml
   - postgres-pvc.yaml
   - postgres-deployment.yaml
   - postgres-service.yaml
-generatorOptions:
-  disableNameSuffixHash: true
-secretGenerator:
-  - name: s8njee-web-secrets
-    envs:
-      - secret.env
 patches:
   - path: deployment-patch.yaml
   - path: service-patch.yaml

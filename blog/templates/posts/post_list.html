@@ -7,7 +7,9 @@
 <article>
     <h2><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h2>
     <p class="meta">{{ post.created_at|date:"F j, Y" }}</p>
-    {{ post.content|linebreaks|truncatewords_html:150 }}
+    <div class="post-content">
+        {{ post.rendered_content|truncatewords_html:150 }}
+    </div>
 </article>
 {% empty %}
 <p>No posts yet.</p>

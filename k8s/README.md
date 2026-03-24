@@ -14,6 +14,7 @@ These manifests deploy the Django app directly behind a Traefik ingress controll
   - `netcup`, where PostgreSQL is expected to exist outside the manifest set
   - `mars`, which includes a separate PostgreSQL deployment, PVC, and service for this app
 - Overlay-specific `ConfigMap`, secret inputs, and access manifests
+- Argo CD `Application` manifests in `k8s/argocd/` that point at each overlay
 
 ## Important Assumptions
 
@@ -30,6 +31,71 @@ docker push registry.s8njee.com/s8njee-web:<tag>
 ```
 
 Then update the target overlay `kustomization.yaml` with the real image name and tag.
+
+## Argo CD
+
+These manifests do not need a full rewrite for Argo CD. Argo CD supports Kustomize natively, so the main shift is:
+
+- point an Argo CD `Application` at `k8s/overlays/netcup` or `k8s/overlays/mars`
+- keep each overlay fully renderable from Git
+- move away from local-only secret inputs
+
+This repo now includes:
+
+- `k8s/argocd/netcup-application.yaml`
+- `k8s/argocd/mars-application.yaml`
+- `k8s/argocd/kustomization.yaml`
+
+Before applying them, update `repoURL` in each `Application` to your real Git remote, and pin `targetRevision` to the branch or tag you want Argo CD to sync.
+
+Install both applications with:
+
+```bash
+kubectl apply -n argocd -k k8s/argocd
+```
+
+Or install one environment at a time with:
+
+```bash
+kubectl apply -n argocd -f k8s/argocd/netcup-application.yaml
+kubectl apply -n argocd -f k8s/argocd/mars-application.yaml
+```
+
+### Secrets Under Argo CD
+
+Argo CD can only sync what is available in Git or already present in the cluster. These overlays now use Bitnami Sealed Secrets so the repo can store encrypted secret material instead of plaintext values.
+
+The committed SealedSecret files are scaffolds only. Replace each `AgReplaceWithKubeseal` value with real encrypted output from `kubeseal` before syncing.
+
+Install the Sealed Secrets controller in the target cluster first, then generate sealed values per overlay. One straightforward workflow is:
+
+```bash
+cat > k8s/overlays/netcup/secret.unsealed.yaml <<'EOF'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s8njee-web-secrets
+  namespace: s8njee-web
+type: Opaque
+stringData:
+  SECRET_KEY: "your-real-django-secret"
+  DB_USER: "s8njee"
+  DB_PASSWORD: "your-real-db-password"
+  AWS_ACCESS_KEY_ID: "your-real-aws-key"
+  AWS_SECRET_ACCESS_KEY: "your-real-aws-secret"
+EOF
+
+kubeseal \
+  --format yaml \
+  --namespace s8njee-web \
+  < k8s/overlays/netcup/secret.unsealed.yaml \
+  > k8s/overlays/netcup/sealed-secret.yaml
+rm k8s/overlays/netcup/secret.unsealed.yaml
+```
+
+Repeat the same pattern for `mars`, including the PostgreSQL keys in the unsealed input secret.
+
+If your controller name or namespace differs from the defaults, add `--controller-name` and `--controller-namespace` to `kubeseal`.
 
 ## Overlays
 
@@ -69,15 +135,12 @@ Edit these files before applying:
   - set `ALLOWED_HOSTS`
   - set `CSRF_TRUSTED_ORIGINS`
 - for `netcup`, set `DB_HOST`
-- `k8s/overlays/netcup/secret.yaml`
-  - set `SECRET_KEY`
-  - set `DB_PASSWORD`
-  - set AWS credentials
+- `k8s/overlays/netcup/sealed-secret.yaml`
+  - replace the placeholder encrypted values with real `kubeseal` output
 - `k8s/overlays/mars/configmap.yaml`
   - adjust the IP-based `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` values if you will access the service another way
-- `k8s/overlays/mars/secret.env`
-  - create it from `k8s/overlays/mars/secret.env.example`
-  - keep it local; it is ignored by git
+- `k8s/overlays/mars/sealed-secret.yaml`
+  - replace the placeholder encrypted values with real `kubeseal` output
 
 ## Verify
 

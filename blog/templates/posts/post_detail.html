@@ -6,8 +6,8 @@
 <article>
     <h1>{{ post.title }}</h1>
     <p class="meta">{{ post.created_at|date:"F j, Y" }}</p>
-    <div class="content">
-        {{ post.content|linebreaks }}
+    <div class="content post-content">
+        {{ post.rendered_content }}
     </div>
 </article>
 <p><a class="back-link" href="{% url 'post_list' %}">← Back to all posts</a></p>

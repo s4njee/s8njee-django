@@ -5,7 +5,7 @@ resources:
   - namespace.yaml
   - ../../base
   - configmap.yaml
-  - secret.yaml
+  - sealed-secret.yaml
   - ingress.yaml
 images:
   - name: s8njee-web
