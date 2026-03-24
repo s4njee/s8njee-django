@@ -10,6 +10,7 @@ resources:
   - ingress.yaml
 patches:
   - path: deployment-patch.yaml
+  - path: backup-cronjob-patch.yaml
 images:
   - name: s8njee-web
     newName: registry.s8njee.com/s8njee-web

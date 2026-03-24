@@ -11,5 +11,8 @@ data:
   DB_NAME: "s8njee"
   DB_HOST: "s8njee-postgres"
   DB_PORT: "5432"
+  DB_BACKUP_BUCKET: "s8njee-photoblog"
+  DB_BACKUP_PREFIX: "backups/postgres/mars/s8njee"
+  DB_BACKUP_EXCLUDED_TABLES: "django_session"
   AWS_STORAGE_BUCKET_NAME: "s8njee-photoblog"
   AWS_S3_REGION_NAME: "us-east-1"

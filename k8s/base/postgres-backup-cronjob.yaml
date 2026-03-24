@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: s8njee-postgres-backup
+spec:
+  schedule: "0 2 * * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: s8njee-postgres-backup
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: s8njee-web:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -lc
+                - cd /app && uv run python manage.py backup_postgres_if_changed
+              envFrom:
+                - configMapRef:
+                    name: s8njee-web-config
+                - secretRef:
+                    name: s8njee-web-secrets
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
