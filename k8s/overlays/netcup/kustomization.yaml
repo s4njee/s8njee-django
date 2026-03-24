@@ -6,8 +6,11 @@ resources:
   - ../../base
   - configmap.yaml
   - sealed-secret.yaml
+  - registry-pull-sealed-secret.yaml
   - ingress.yaml
+patches:
+  - path: deployment-patch.yaml
 images:
   - name: s8njee-web
-    newName: ghcr.io/replace-me/s8njee-web
-    newTag: latest
+    newName: registry.s8njee.com/s8njee-web
+    newTag: 20260323-194552-amd64

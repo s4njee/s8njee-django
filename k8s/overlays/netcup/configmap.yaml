@@ -9,7 +9,7 @@ data:
   CSRF_TRUSTED_ORIGINS: "https://blog.s8njee.com"
   DB_ENGINE: "django.db.backends.postgresql"
   DB_NAME: "s8njee"
-  DB_HOST: "postgres.example.internal"
+  DB_HOST: "postgres.default.svc.cluster.local"
   DB_PORT: "5432"
   AWS_STORAGE_BUCKET_NAME: "s8njee-photoblog"
   AWS_S3_REGION_NAME: "us-east-1"
