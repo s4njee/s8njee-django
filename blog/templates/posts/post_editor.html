@@ -3,6 +3,8 @@
 {% block title %}{% if post %}Edit {{ post.title }}{% else %}New Post{% endif %}{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css">
+<link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css">
 <style>
     .editor-page {
         display: grid;
@@ -65,11 +67,33 @@
         line-height: 1.65;
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
+    .editor-form textarea.editor-source-hidden {
+        display: none;
+    }
     .editor-form input:focus,
     .editor-form textarea:focus {
         outline: 2px solid #6d8cff;
         outline-offset: 1px;
         border-color: #6d8cff;
+    }
+    .editor-enhancement-note {
+        color: #9a9a9a;
+        font-size: 0.88rem;
+        margin-top: 0.45rem;
+    }
+    .editor-host {
+        min-height: 34rem;
+        border-radius: 0.8rem;
+        overflow: hidden;
+    }
+    .toastui-editor-dark.toastui-editor-defaultUI {
+        border-radius: 0.8rem;
+        border-color: #2f3138;
+    }
+    .toastui-editor-dark .toastui-editor-defaultUI-toolbar,
+    .toastui-editor-dark .toastui-editor-mode-switch {
+        background: #16181d;
+        border-color: #262931;
     }
     .checkbox-row {
         display: flex;
@@ -190,6 +214,10 @@
                 <div>
                     <label for="{{ form.content.id_for_label }}">Markdown</label>
                     {{ form.content }}
+                    <div class="editor-host" id="toast-editor"></div>
+                    <p class="editor-enhancement-note">
+                        Toast UI adds the toolbar, shortcuts, and editor chrome. The panel on the right still shows the sanitized site preview.
+                    </p>
                     {% if form.content.errors %}
                         <div class="field-error">{{ form.content.errors|join:", " }}</div>
                     {% endif %}
@@ -234,23 +262,33 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js"></script>
 <script>
     (() => {
+        const form = document.querySelector(".editor-form");
         const contentField = document.getElementById("{{ form.content.id_for_label }}");
+        const editorHost = document.getElementById("toast-editor");
         const previewShell = document.getElementById("preview-shell");
         const previewUrl = "{% url 'post_editor_preview' %}";
         const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value;
         if (!contentField || !previewShell || !csrfToken) return;
 
+        let editor = null;
+        let getMarkdown = () => contentField.value;
+
         let timerId = null;
         let requestCounter = 0;
+
+        const syncEditorValue = () => {
+            contentField.value = getMarkdown();
+        };
 
         const renderPlaceholder = () => {
             previewShell.innerHTML = '<p class="preview-placeholder">Start typing to preview your post.</p>';
         };
 
         const updatePreview = async () => {
-            const markdown = contentField.value;
+            const markdown = getMarkdown();
             if (!markdown.trim()) {
                 renderPlaceholder();
                 return;
@@ -286,7 +324,38 @@
             timerId = window.setTimeout(updatePreview, 180);
         };
 
-        contentField.addEventListener("input", queuePreview);
+        if (editorHost && window.toastui?.Editor) {
+            editor = new window.toastui.Editor({
+                el: editorHost,
+                height: window.matchMedia("(max-width: 860px)").matches ? "32rem" : "38rem",
+                initialEditType: "markdown",
+                previewStyle: window.matchMedia("(max-width: 1180px)").matches ? "tab" : "vertical",
+                initialValue: contentField.value,
+                autofocus: false,
+                usageStatistics: false,
+                hideModeSwitch: false,
+                theme: "dark",
+                toolbarItems: [
+                    ["heading", "bold", "italic", "strike"],
+                    ["hr", "quote"],
+                    ["ul", "ol", "task"],
+                    ["table", "image", "link"],
+                    ["code", "codeblock"],
+                ],
+            });
+            getMarkdown = () => editor.getMarkdown();
+            contentField.classList.add("editor-source-hidden");
+            syncEditorValue();
+            editor.on("change", () => {
+                syncEditorValue();
+                queuePreview();
+            });
+        } else {
+            contentField.addEventListener("input", queuePreview);
+        }
+
+        form?.addEventListener("submit", syncEditorValue);
+        queuePreview();
     })();
 </script>
 {% endblock %}

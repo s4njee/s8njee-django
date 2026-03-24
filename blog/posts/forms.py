@@ -17,6 +17,7 @@ class PostEditorForm(forms.ModelForm):
             "slug": forms.TextInput(attrs={"placeholder": "post-slug"}),
             "content": forms.Textarea(
                 attrs={
+                    "class": "markdown-source-field",
                     "rows": 24,
                     "placeholder": "# Start writing in Markdown\n\nUse headings, lists, code fences, links, and images.",
                     "spellcheck": "true",

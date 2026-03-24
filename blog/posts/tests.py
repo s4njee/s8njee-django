@@ -71,6 +71,15 @@ class PostEditorTests(TestCase):
         self.assertEqual(post.slug, "editor-post")
         self.assertTrue(post.published)
 
+    def test_staff_editor_page_loads_toast_ui_shell(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("post_editor_new"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="toast-editor"', html=False)
+        self.assertContains(response, "toastui-editor-all.min.js")
+
     def test_staff_can_preview_markdown(self):
         self.client.force_login(self.staff_user)
 
