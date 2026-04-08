@@ -1,0 +1,19 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: s8njee-web-netcup
+  namespace: argocd
+spec:
+  commonUpdateSettings:
+    pullSecret: pullsecret:s8njee-web/registry-s8njee-pull
+    updateStrategy: newest-build
+  writeBackConfig:
+    method: argocd
+  applicationRefs:
+    - namePattern: s8njee-web-netcup
+      images:
+        - alias: s8njee-web
+          imageName: registry.s8njee.com/s8njee-web:sha-822ae2b828fc345fb436d200ac4f265d1913c755
+          manifestTargets:
+            kustomize:
+              name: s8njee-web

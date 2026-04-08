@@ -163,7 +163,7 @@ The site uses Django templates with vanilla CSS. There is no separate Webpack or
 git push origin main
 ```
 
-After pushing, Argo CD reconciles the Kubernetes manifests from Git.
+After pushing, Argo CD reconciles the Kubernetes manifests from Git. Netcup image rollouts are handled by Argo CD Image Updater, so the workflow now only builds and pushes a new image tag; it no longer commits deploy updates back to `main`.
 
 ## Runtime Checks
 

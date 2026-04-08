@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - k8s/overlays/netcup/kustomization.yaml
   workflow_dispatch:
 
 concurrency:
@@ -14,11 +12,8 @@ concurrency:
 
 jobs:
   build:
-    if: github.actor != 'github-actions[bot]'
-    name: Build image and update netcup
+    name: Build image and push
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     env:
       REGISTRY: registry.s8njee.com
       IMAGE_NAME: s8njee-web
@@ -50,22 +45,3 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Update netcup image tag
-        run: |
-          sed -i.bak "s|newTag: .*|newTag: ${IMAGE_TAG}|" k8s/overlays/netcup/kustomization.yaml
-          rm k8s/overlays/netcup/kustomization.yaml.bak
-
-      - name: Commit netcup manifest update
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add k8s/overlays/netcup/kustomization.yaml
-
-          if git diff --cached --quiet; then
-            echo "Netcup manifest already points at ${IMAGE_TAG}"
-            exit 0
-          fi
-
-          git commit -m "Deploy ${IMAGE_TAG} to netcup [skip ci]"
-          git push origin HEAD:main

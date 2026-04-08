@@ -15,6 +15,7 @@ These manifests deploy the Django app directly behind a Traefik ingress controll
   - `mars`, which includes a separate PostgreSQL deployment, PVC, and service for this app
 - Overlay-specific `ConfigMap`, secret inputs, and access manifests
 - Argo CD `Application` manifests in `k8s/argocd/` that point at each overlay
+- Argo CD Image Updater for the netcup overlay so image tags move without Git deploy commits
 
 ## Important Assumptions
 
@@ -30,7 +31,7 @@ docker build -t registry.s8njee.com/s8njee-web:<tag> ./blog
 docker push registry.s8njee.com/s8njee-web:<tag>
 ```
 
-Then update the target overlay `kustomization.yaml` with the real image name and tag.
+Netcup no longer needs a manifest commit after this step. The Image Updater controller watches the registry, updates `s8njee-web-netcup` when a newer image appears, and Argo CD syncs that change automatically.
 
 ## Argo CD
 
@@ -42,6 +43,8 @@ These manifests do not need a full rewrite for Argo CD. Argo CD supports Kustomi
 
 This repo now includes:
 
+- `k8s/argocd/argocd-image-updater-install.yaml`
+- `k8s/argocd/image-updater.yaml`
 - `k8s/argocd/netcup-application.yaml`
 - `k8s/argocd/mars-application.yaml`
 - `k8s/argocd/argo-server-certificate.yaml`
@@ -56,6 +59,8 @@ Install both applications with:
 ```bash
 kubectl apply -n argocd -k k8s/argocd
 ```
+
+That stack also installs Argo CD Image Updater and the `ImageUpdater` custom resource for `s8njee-web-netcup`.
 
 Or install one environment at a time with:
 
