@@ -61,7 +61,7 @@ A. Done on March 23, 2026. See `DEPLOYMENT_CHECKLIST.md`.
 
 - [ ] Ensure the chosen production topology works from a clean machine without manual code edits.
 
-- [ ] Move `s8njee` off the shared Netcup PostgreSQL service and onto its own dedicated PostgreSQL 18 instance.
+- [x] Move `s8njee` off the shared Netcup PostgreSQL service and onto its own dedicated PostgreSQL 18 instance.
   Reason:
   - `blog.s8njee.com` is currently pointed at `postgres.default.svc.cluster.local`, which is a shared database service used by another app.
   - This is now a proven outage risk. The blog should have its own database service, credentials, and PVC.
@@ -85,17 +85,17 @@ A. Done on March 23, 2026. See `DEPLOYMENT_CHECKLIST.md`.
   - Confirm the backup CronJob is now dumping the dedicated `s8njee` database instead of the shared `default/postgres` service.
   - After the dedicated DB is confirmed healthy, remove the temporary dependency on `postgres.default.svc.cluster.local` from the Netcup overlay docs and config.
 
-- [ ] Add one canonical startup path for local development and one for production.
+- [x] Add one canonical startup path for local development and one for production.
   - Define how and when `manage.py migrate` and `manage.py collectstatic` run during a production release (e.g., via an init container in Docker or deployment script).
   - Clarify the frontend asset pipeline (are we using Webpack/Tailwind, or just vanilla CSS?).
 
-- [ ] Verify media and static handling in both local filesystem mode and S3 mode.
+- [x] Verify media and static handling in both local filesystem mode and S3 mode.
 
-- [ ] Add backup and restore instructions for:
+- [x] Add backup and restore instructions for:
   - PostgreSQL
   - uploaded media / S3 bucket
 
-- [ ] Add basic observability for launch:
+- [x] Add basic observability for launch:
   - structured logs
   - error reporting
   - healthcheck / smoke-check steps

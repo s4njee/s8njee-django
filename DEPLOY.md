@@ -4,7 +4,7 @@ This project is deployed to Kubernetes with Argo CD.
 
 The current `mars` deployment uses these persistent database resources:
 
-- `Deployment`: `s8njee-postgres`
+- `StatefulSet`: `s8njee-postgres`
 - `Service`: `s8njee-postgres`
 - `PersistentVolumeClaim`: `s8njee-postgres-data`
 - `Secret`: `s8njee-web-secrets` generated from the committed `SealedSecret`
@@ -15,7 +15,7 @@ If you want to deploy a new app version without overwriting the PostgreSQL datab
 
 - `k8s/overlays/mars/postgres-pvc.yaml`
 - the PVC name `s8njee-postgres-data`
-- the PostgreSQL deployment name `s8njee-postgres`
+- the PostgreSQL StatefulSet name `s8njee-postgres`
 - the database keys inside `k8s/overlays/mars/sealed-secret.yaml`
 
 Argo CD can safely roll the app forward in place as long as those resources keep the same identity.
@@ -28,6 +28,19 @@ Argo CD can safely roll the app forward in place as long as those resources keep
 4. Let Argo CD sync `s8njee-web-mars` from `https://github.com/s4njee/s8njee-django.git`.
 
 That flow updates the Django app without recreating the PostgreSQL volume.
+
+## Startup Flow
+
+The release entrypoint is [`blog/start.sh`](/Users/sanjee/Documents/projects/s8njee-web/blog/start.sh).
+
+It is the canonical production startup path and always runs these steps in order:
+
+1. `manage.py migrate`
+2. load seed content only if the database is empty
+3. `manage.py collectstatic`
+4. start Uvicorn
+
+For local development, use `cd blog && uv sync && uv run python manage.py migrate && uv run python manage.py runserver`.
 
 ## What Not To Do
 
@@ -84,6 +97,45 @@ Confirm:
 - `s8njee-postgres-data` is still `Bound`
 - `s8njee-postgres` is still using the same PVC
 - the site responds on `http://192.168.1.156:4201/`
+
+## Backup And Restore
+
+### PostgreSQL
+
+Create a dump from the live Mars database:
+
+```bash
+kubectl exec -n default postgres-0 -- \
+  sh -lc 'PGPASSWORD=postgres pg_dump -U postgres -d s8njee --no-owner --no-privileges' \
+  > backups/mars-postgres.sql
+```
+
+Restore a dump into Mars:
+
+```bash
+kubectl exec -i -n default postgres-0 -- \
+  sh -lc 'PGPASSWORD=postgres psql -U postgres -d s8njee' \
+  < backups/mars-postgres.sql
+```
+
+### Media
+
+Media is stored in S3 in production, so bucket sync is separate from PostgreSQL backup:
+
+```bash
+aws s3 sync s3://s8njee-photoblog/media/ backups/media/
+aws s3 sync backups/media/ s3://s8njee-photoblog/media/
+```
+
+## Smoke Checks
+
+After any deploy, verify:
+
+```bash
+kubectl logs -n default deploy/s8njee-web --tail=200
+curl -I http://192.168.1.156:4201/
+kubectl exec -n default deploy/s8njee-web -- python manage.py migrate --check
+```
 
 ## If You Need To Rebuild The App But Keep The DB
 

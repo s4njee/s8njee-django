@@ -66,6 +66,15 @@ kubectl apply -n argocd -f k8s/argocd/mars-application.yaml
 
 The same `k8s/argocd` Kustomize stack also exposes Argo CD at `https://argo.s8njee.com` through Traefik using the existing `argocd-server` Service.
 
+To log in with the CLI:
+
+```bash
+argocd login argo.s8njee.com \
+  --grpc-web \
+  --username admin \
+  --password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+```
+
 ### Secrets Under Argo CD
 
 Argo CD can only sync what is available in Git or already present in the cluster. These overlays now use Bitnami Sealed Secrets so the repo can store encrypted secret material instead of plaintext values.
