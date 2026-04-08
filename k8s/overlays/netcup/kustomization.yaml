@@ -17,4 +17,4 @@ patches:
 images:
   - name: s8njee-web
     newName: registry.s8njee.com/s8njee-web
-    newTag: sha-822ae2b828fc345fb436d200ac4f265d1913c755
+    newTag: sha-d2a043e4b938421a6ac58fe0928feae884c812a9
