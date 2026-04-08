@@ -61,6 +61,30 @@ A. Done on March 23, 2026. See `DEPLOYMENT_CHECKLIST.md`.
 
 - [ ] Ensure the chosen production topology works from a clean machine without manual code edits.
 
+- [ ] Move `s8njee` off the shared Netcup PostgreSQL service and onto its own dedicated PostgreSQL 18 instance.
+  Reason:
+  - `blog.s8njee.com` is currently pointed at `postgres.default.svc.cluster.local`, which is a shared database service used by another app.
+  - This is now a proven outage risk. The blog should have its own database service, credentials, and PVC.
+
+  Tomorrow deployment checklist:
+  - Create a dedicated PostgreSQL workload for the blog in the `s8njee-web` namespace, ideally as a `StatefulSet` plus a `ClusterIP` service such as `s8njee-postgres`.
+  - Use PostgreSQL `18.x` for the new instance. Pin a specific `18.x` image tag instead of `latest` so future deploys stay reproducible.
+  - Give the new database its own persistent volume claim and do not reuse the shared `default/postgres` PVC or service.
+  - Generate fresh database credentials for `s8njee` only, then update `k8s/overlays/netcup/sealed-secret.yaml` with the new sealed values.
+  - Update `k8s/overlays/netcup/configmap.yaml` so `DB_HOST` points to the dedicated service, for example `s8njee-postgres.s8njee-web.svc.cluster.local`.
+  - If the new manifest uses direct PostgreSQL bootstrap env vars, include `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in addition to the app-facing `DB_*` values.
+  - Restore the newest backup, not the older local dump. The latest known backup source is `s3://s8njee-photoblog/backups/postgres/netcup/s8njee/latest.json`, which currently points to `backups/postgres/netcup/s8njee/20260401T070007Z-s8njee-daf473e99218.sql.gz`.
+  - Prefer restoring with a PostgreSQL 18 client. If the restore target rejects dump header lines like `SET transaction_timeout = 0;` or psql meta-commands such as `\\restrict`, either use a matching/newer client or strip those lines before replaying the dump.
+  - Add the same kind of DB wait step used in the `mars` overlay so the Django app does not start before the dedicated database is ready.
+  - After cutover, verify:
+    - `kubectl logs -n s8njee-web deploy/s8njee-web --tail=200`
+    - `curl -I https://blog.s8njee.com`
+    - `/` returns `200`
+    - `manage.py migrate` succeeds
+    - expected row counts exist in `posts_post`, `albums_album`, and `albums_photo`
+  - Confirm the backup CronJob is now dumping the dedicated `s8njee` database instead of the shared `default/postgres` service.
+  - After the dedicated DB is confirmed healthy, remove the temporary dependency on `postgres.default.svc.cluster.local` from the Netcup overlay docs and config.
+
 - [ ] Add one canonical startup path for local development and one for production.
   - Define how and when `manage.py migrate` and `manage.py collectstatic` run during a production release (e.g., via an init container in Docker or deployment script).
   - Clarify the frontend asset pipeline (are we using Webpack/Tailwind, or just vanilla CSS?).

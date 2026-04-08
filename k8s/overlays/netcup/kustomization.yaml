@@ -6,6 +6,9 @@ resources:
   - ../../base
   - configmap.yaml
   - sealed-secret.yaml
+  - postgres-headless-service.yaml
+  - postgres-service.yaml
+  - postgres-statefulset.yaml
   - registry-pull-sealed-secret.yaml
   - ingress.yaml
 patches:

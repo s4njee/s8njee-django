@@ -11,7 +11,7 @@ These manifests deploy the Django app directly behind a Traefik ingress controll
   - Uvicorn startup
 - A `Service` exposing the app on port 80 inside the cluster
 - Environment-specific overlays for:
-  - `netcup`, where PostgreSQL is expected to exist outside the manifest set
+  - `netcup`, which now includes its own PostgreSQL 18 instance in the `s8njee-web` namespace
   - `mars`, which includes a separate PostgreSQL deployment, PVC, and service for this app
 - Overlay-specific `ConfigMap`, secret inputs, and access manifests
 - Argo CD `Application` manifests in `k8s/argocd/` that point at each overlay
@@ -81,6 +81,9 @@ stringData:
   SECRET_KEY: "your-real-django-secret"
   DB_USER: "s8njee"
   DB_PASSWORD: "your-real-db-password"
+  POSTGRES_USER: "s8njee"
+  POSTGRES_PASSWORD: "your-real-db-password"
+  POSTGRES_DB: "s8njee"
   AWS_ACCESS_KEY_ID: "your-real-aws-key"
   AWS_SECRET_ACCESS_KEY: "your-real-aws-secret"
 EOF
@@ -101,7 +104,14 @@ If your controller name or namespace differs from the defaults, add `--controlle
 
 ### Netcup
 
-The `netcup` overlay expects an existing PostgreSQL endpoint and HTTPS ingress.
+The `netcup` overlay includes:
+
+- app deployment and service
+- PostgreSQL 18 StatefulSet
+- namespaced PostgreSQL services for app access and StatefulSet identity
+- a StatefulSet-managed persistent volume claim
+- HTTPS ingress
+- an init container that waits for PostgreSQL before the Django app starts
 
 Apply with:
 
@@ -134,7 +144,7 @@ Edit these files before applying:
 - `k8s/overlays/<overlay>/configmap.yaml`
   - set `ALLOWED_HOSTS`
   - set `CSRF_TRUSTED_ORIGINS`
-- for `netcup`, set `DB_HOST`
+- for `netcup`, `DB_HOST` is already wired to the in-cluster PostgreSQL service
 - `k8s/overlays/netcup/sealed-secret.yaml`
   - replace the placeholder encrypted values with real `kubeseal` output
 - `k8s/overlays/mars/configmap.yaml`
@@ -148,4 +158,12 @@ Edit these files before applying:
 kubectl -n <namespace> get pods,svc,pvc
 kubectl -n <namespace> logs deploy/s8njee-web
 kubectl -n <namespace> rollout status deploy/s8njee-web
+```
+
+For netcup specifically:
+
+```bash
+kubectl --context=netcup get pods,svc,pvc -n s8njee-web
+kubectl --context=netcup rollout status statefulset/s8njee-postgres -n s8njee-web
+kubectl --context=netcup rollout status deployment/s8njee-web -n s8njee-web
 ```

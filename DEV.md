@@ -174,14 +174,31 @@ The Netcup overlay is [`k8s/overlays/netcup/`](/Users/sanjee/Documents/projects/
 
 That path assumes:
 
-- existing PostgreSQL reachable from the cluster
+- the `s8njee-web` namespace contains both the Django app and the dedicated PostgreSQL 18 instance
 - Traefik ingress
 - external hostname/TLS routing rather than a `LoadBalancer` on `4201`
+- the app waits for PostgreSQL before starting
+
+What it deploys:
+
+- `s8njee-web` Django deployment
+- `s8njee-postgres` PostgreSQL StatefulSet
+- a PostgreSQL headless service for StatefulSet identity
+- a PostgreSQL `ClusterIP` service for the app and backup job
+- a namespaced PostgreSQL volume claim managed by the StatefulSet
 
 Apply:
 
 ```bash
 kubectl --context=netcup apply -k k8s/overlays/netcup
+```
+
+Verify:
+
+```bash
+kubectl --context=netcup get pods,svc,pvc -n s8njee-web | rg 's8njee'
+kubectl --context=netcup rollout status statefulset/s8njee-postgres -n s8njee-web
+kubectl --context=netcup rollout status deployment/s8njee-web -n s8njee-web
 ```
 
 ## Secrets And Caution
