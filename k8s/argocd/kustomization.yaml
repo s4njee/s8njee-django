@@ -4,5 +4,6 @@ namespace: argocd
 resources:
   - netcup-application.yaml
   - mars-application.yaml
+  - argo-server-certificate.yaml
   - argo-server-servers-transport.yaml
   - argo-server-ingressroute.yaml

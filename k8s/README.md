@@ -44,6 +44,7 @@ This repo now includes:
 
 - `k8s/argocd/netcup-application.yaml`
 - `k8s/argocd/mars-application.yaml`
+- `k8s/argocd/argo-server-certificate.yaml`
 - `k8s/argocd/argo-server-ingressroute.yaml`
 - `k8s/argocd/argo-server-servers-transport.yaml`
 - `k8s/argocd/kustomization.yaml`
