@@ -44,6 +44,8 @@ This repo now includes:
 
 - `k8s/argocd/netcup-application.yaml`
 - `k8s/argocd/mars-application.yaml`
+- `k8s/argocd/argo-server-ingressroute.yaml`
+- `k8s/argocd/argo-server-servers-transport.yaml`
 - `k8s/argocd/kustomization.yaml`
 
 Before applying them, update `repoURL` in each `Application` to your real Git remote, and pin `targetRevision` to the branch or tag you want Argo CD to sync.
@@ -60,6 +62,8 @@ Or install one environment at a time with:
 kubectl apply -n argocd -f k8s/argocd/netcup-application.yaml
 kubectl apply -n argocd -f k8s/argocd/mars-application.yaml
 ```
+
+The same `k8s/argocd` Kustomize stack also exposes Argo CD at `https://argo.s8njee.com` through Traefik using the existing `argocd-server` Service.
 
 ### Secrets Under Argo CD
 
