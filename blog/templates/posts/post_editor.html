@@ -6,10 +6,23 @@
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css">
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css">
 <style>
+    body {
+        max-width: 1380px;
+    }
+    .layout {
+        display: block;
+    }
+    .main {
+        width: 100%;
+    }
+    .sidebar {
+        display: none;
+    }
     .editor-page {
         display: grid;
         grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
         gap: 1.5rem;
+        align-items: start;
     }
     .editor-panel,
     .preview-panel,
@@ -21,6 +34,7 @@
     .editor-panel,
     .preview-panel {
         padding: 1.25rem;
+        min-width: 0;
     }
     .editor-help {
         margin-top: 1.25rem;
@@ -54,6 +68,8 @@
     .editor-form input[type="text"],
     .editor-form textarea {
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         border: 1px solid #343434;
         border-radius: 0.7rem;
         background: #0f0f0f;
@@ -83,12 +99,22 @@
     }
     .editor-host {
         min-height: 34rem;
+        width: 100%;
+        max-width: 100%;
         border-radius: 0.8rem;
         overflow: hidden;
     }
+    .toastui-editor-defaultUI,
+    .toastui-editor-main,
+    .toastui-editor-md-container,
+    .toastui-editor-ww-container {
+        max-width: 100%;
+    }
     .toastui-editor-dark.toastui-editor-defaultUI {
+        width: 100%;
         border-radius: 0.8rem;
         border-color: #2f3138;
+        box-sizing: border-box;
     }
     .toastui-editor-dark .toastui-editor-defaultUI-toolbar,
     .toastui-editor-dark .toastui-editor-mode-switch {
@@ -151,6 +177,7 @@
     }
     .preview-shell {
         min-height: 26rem;
+        overflow-wrap: anywhere;
     }
     .preview-placeholder {
         color: #888;
@@ -162,12 +189,21 @@
     .editor-help li {
         margin-bottom: 0.35rem;
     }
-    @media (max-width: 860px) {
+    @media (max-width: 1180px) {
         .editor-page {
             grid-template-columns: 1fr;
         }
+        .editor-panel,
+        .preview-panel {
+            padding: 1rem;
+        }
         .preview-shell {
             min-height: auto;
+        }
+    }
+    @media (max-width: 700px) {
+        body {
+            padding: 1rem;
         }
     }
 </style>
