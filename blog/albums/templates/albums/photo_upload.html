@@ -9,7 +9,7 @@
      ondrop="event.preventDefault();this.style.borderColor='#333';addFiles(event.dataTransfer.files)"
      onclick="document.getElementById('file-input').click()">
   <p style="color:#888;font-size:1.1rem">Drop photos here or click to select</p>
-  <input type="file" id="file-input" multiple accept="image/*" style="display:none" onchange="addFiles(this.files)">
+  <input type="file" id="file-input" multiple accept="image/*,.nef,.cr2,.cr3,.dng,.arw,.orf,.raf,.rw2" style="display:none" onchange="addFiles(this.files)">
 </div>
 
 <div id="queue" style="margin-bottom:1.5rem"></div>
@@ -31,24 +31,37 @@ const CSRF = "{{ csrf_token }}";
 let queue = [];
 let uploading = false;
 
+const RAW_EXTENSIONS = new Set(['nef','cr2','cr3','dng','arw','orf','raf','rw2']);
+
+function isAcceptedFile(f) {
+  if (f.type.startsWith('image/')) return true;
+  const ext = f.name.split('.').pop().toLowerCase();
+  return RAW_EXTENSIONS.has(ext);
+}
+
 function addFiles(fileList) {
   for (const f of fileList) {
-    if (!f.type.startsWith("image/")) continue;
+    if (!isAcceptedFile(f)) continue;
     const id = crypto.randomUUID();
     queue.push({ id, file: f, status: "pending" });
-    renderItem(id, f);
+    renderItem(id, f, RAW_EXTENSIONS.has(f.name.split('.').pop().toLowerCase()));
   }
   updateControls();
 }
 
-function renderItem(id, file) {
+function renderItem(id, file, isRaw = false) {
   const el = document.createElement("div");
   el.id = "item-" + id;
   el.style.cssText = "display:flex;align-items:center;gap:1rem;padding:.5rem 0;border-bottom:1px solid #222";
+  // RAW files can't be previewed natively in the browser, show a placeholder instead
+  const previewHtml = isRaw
+    ? `<div style="width:48px;height:48px;border-radius:4px;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#888;text-align:center;font-weight:600;letter-spacing:.5px">RAW</div>`
+    : `<img src="${URL.createObjectURL(file)}" style="width:48px;height:48px;object-fit:cover;border-radius:4px">`;
   el.innerHTML = `
-    <img src="${URL.createObjectURL(file)}" style="width:48px;height:48px;object-fit:cover;border-radius:4px">
+    ${previewHtml}
     <div style="flex:1;min-width:0">
       <div style="font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</div>
+      ${isRaw ? '<div style="font-size:.75rem;color:#888;margin-top:2px">RAW — will be converted to AVIF on upload</div>' : ''}
       <div class="progress-bar" style="height:4px;background:#222;border-radius:2px;margin-top:4px;overflow:hidden">
         <div class="progress-fill" style="height:100%;width:0%;background:#2563eb;transition:width .2s"></div>
       </div>
