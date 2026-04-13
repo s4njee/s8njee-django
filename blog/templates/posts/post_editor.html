@@ -6,277 +6,343 @@
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css">
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css">
 <style>
+    /* Modern, premium aesthetic layout */
     body {
         width: 100%;
         max-width: none;
-        padding: 1rem;
+        padding: 2rem;
+        background-color: #0b0c10;
+        color: #c5c6c7;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     }
-    .layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0;
-    }
-    .main {
-        width: 100%;
-        min-width: 0;
-    }
-    .sidebar {
-        display: none;
-    }
+
+    /* Base Layout */
     .editor-workspace {
-        display: grid;
-        grid-template-rows: auto minmax(0, 1fr) auto;
-        gap: 1rem;
-        min-width: 0;
+        max-width: 1600px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
     }
+
+    /* Header */
+    .editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 2px solid #1f2833;
+        padding-bottom: 1rem;
+    }
+
+    .editor-header h1 {
+        font-size: 2.2rem;
+        color: #66fcf1;
+        margin: 0 0 0.5rem 0;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+
+    .editor-meta {
+        color: #8b929a;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    /* Grid Layout for Editor and Preview */
     .editor-page {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.72fr);
-        gap: 1rem;
-        align-items: start;
-        min-width: 0;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        align-items: stretch;
     }
-    .editor-panel,
-    .preview-panel,
-    .editor-help {
-        background: #161616;
-        border: 1px solid #303030;
-        border-radius: 8px;
-        min-width: 0;
-    }
-    .editor-panel,
-    .preview-panel {
-        padding: 1rem;
-    }
-    .editor-help {
-        padding: 0.9rem 1rem;
-    }
-    .editor-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 1rem;
-        align-items: end;
-        min-width: 0;
-    }
-    .editor-header h1,
-    .preview-panel h2 {
-        margin: 0;
-        line-height: 1.1;
-    }
-    .editor-meta {
-        color: #999;
-        font-size: 0.92rem;
-    }
-    .editor-form {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0.9rem;
-        min-width: 0;
-    }
-    .editor-field {
-        min-width: 0;
-    }
-    .editor-form label {
-        display: block;
-        margin-bottom: 0.35rem;
-        color: #f1f1f1;
-        font-weight: 600;
-    }
-    .editor-form input[type="text"],
-    .editor-form textarea {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        border: 1px solid #343434;
-        border-radius: 8px;
-        background: #0f0f0f;
-        color: #f2f2f2;
-        padding: 0.7rem 0.8rem;
-        font: inherit;
-    }
-    .editor-form textarea {
-        resize: vertical;
-        min-height: 30rem;
-        line-height: 1.65;
-        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    }
-    .editor-form textarea.editor-source-hidden {
-        display: none;
-    }
-    .editor-form input:focus,
-    .editor-form textarea:focus {
-        outline: 2px solid #6d8cff;
-        outline-offset: 1px;
-        border-color: #6d8cff;
-    }
-    .editor-enhancement-note {
-        color: #9a9a9a;
-        font-size: 0.88rem;
-        margin-top: 0.55rem;
-    }
-    .editor-host {
-        min-height: 38rem;
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    .editor-host > * {
-        min-width: 0;
-    }
-    .toastui-editor-defaultUI,
-    .toastui-editor-main,
-    .toastui-editor-md-container,
-    .toastui-editor-ww-container,
-    .toastui-editor-md-splitter,
-    .toastui-editor-md-preview,
-    .toastui-editor-md-editor,
-    .toastui-editor,
-    .toastui-editor-contents {
-        width: 100% !important;
-        max-width: 100%;
-        min-width: 0 !important;
-        box-sizing: border-box;
-    }
-    .toastui-editor-dark.toastui-editor-defaultUI {
-        width: 100%;
-        border-radius: 8px;
-        border-color: #2f3138;
-        overflow: hidden;
-    }
-    .toastui-editor-dark .toastui-editor-defaultUI-toolbar,
-    .toastui-editor-dark .toastui-editor-mode-switch {
-        background: #16181d;
-        border-color: #262931;
-    }
-    .toastui-editor-defaultUI-toolbar {
-        display: flex !important;
-        flex-wrap: wrap;
-        align-items: center;
-        height: auto !important;
-        min-height: 45px;
-        row-gap: 0.25rem;
-        overflow: visible;
-    }
-    .toastui-editor-toolbar-group {
-        display: inline-flex;
-        flex-wrap: nowrap;
-        max-width: 100%;
-    }
-    .toastui-editor-toolbar-icons {
-        flex: 0 0 auto;
-    }
-    .toastui-editor-md-container {
-        display: grid !important;
-        grid-template-columns: minmax(0, 1fr);
-    }
-    .toastui-editor-md-container .toastui-editor-md-splitter,
-    .toastui-editor-md-container .toastui-editor-md-preview {
-        display: none;
-    }
-    .checkbox-row {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-    }
-    .checkbox-row input {
-        width: 1rem;
-        height: 1rem;
-    }
-    .checkbox-row label {
-        margin: 0;
-        font-weight: 500;
-    }
-    .action-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        align-items: center;
-    }
-    .button,
-    .button-secondary {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        text-decoration: none;
-        font-weight: 600;
-        border: 1px solid #3b3b3b;
-        cursor: pointer;
-    }
-    .button {
-        background: #f0f0f0;
-        color: #111;
-    }
-    .button-secondary {
-        background: transparent;
-        color: #e0e0e0;
-    }
-    .save-note {
-        color: #7fd0a5;
-        font-size: 0.95rem;
-    }
-    .field-error,
-    .non-field-errors {
-        color: #ff9b9b;
-        font-size: 0.92rem;
-        margin-top: 0.35rem;
-    }
-    .preview-meta {
-        color: #999;
-        font-size: 0.9rem;
-        margin: 0.35rem 0 1rem;
-    }
-    .preview-shell {
-        min-height: 38rem;
-        min-width: 0;
-        max-width: 100%;
-        overflow-wrap: anywhere;
-        overflow-x: auto;
-    }
-    .preview-placeholder {
-        color: #888;
-        font-style: italic;
-    }
-    .editor-help ul {
-        margin: 0.75rem 0 0 1.25rem;
-    }
-    .editor-help li {
-        margin-bottom: 0.35rem;
-    }
-    @media (max-width: 1180px) {
+
+    @media (max-width: 1200px) {
         .editor-page {
             grid-template-columns: 1fr;
         }
-        .editor-panel,
+    }
+
+    /* Panels styling */
+    .editor-panel, .preview-panel {
+        background: #15181e;
+        border: 1px solid #1f2833;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        min-width: 0; /* Important for grid overflow */
+    }
+
+    .preview-panel {
+        position: sticky;
+        top: 2rem;
+        height: calc(100vh - 4rem);
+    }
+
+    @media (max-width: 1200px) {
         .preview-panel {
-            padding: 1rem;
-        }
-        .preview-shell {
-            min-height: auto;
+            position: static;
+            height: 800px; /* fixed height for mobile preview */
         }
     }
-    @media (max-width: 700px) {
-        body {
-            padding: 0.75rem;
-        }
-        header {
-            margin-bottom: 1.25rem;
-        }
-        .editor-header {
-            grid-template-columns: 1fr;
-            align-items: start;
-        }
-        .action-row,
-        .button,
-        .button-secondary {
-            width: 100%;
-        }
-        .editor-host {
-            min-height: 32rem;
-        }
+
+    .preview-panel h2 {
+        color: #45a29e;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        font-size: 1.4rem;
+        font-weight: 600;
+    }
+
+    .preview-meta {
+        color: #8b929a;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.2rem;
+        border-bottom: 1px solid #1f2833;
+    }
+
+    .preview-shell {
+        flex-grow: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 0.8rem;
+        color: #e0e6ed;
+        word-break: break-word;
+        line-height: 1.7;
+    }
+
+    /* Scrollbar for preview */
+    .preview-shell::-webkit-scrollbar {
+        width: 8px;
+    }
+    .preview-shell::-webkit-scrollbar-track {
+        background: rgba(21, 24, 30, 0.5);
+        border-radius: 4px;
+    }
+    .preview-shell::-webkit-scrollbar-thumb {
+        background-color: #2b3643;
+        border-radius: 4px;
+    }
+    .preview-shell::-webkit-scrollbar-thumb:hover {
+        background-color: #45a29e;
+    }
+
+    .preview-placeholder {
+        color: #5d636b;
+        font-style: italic;
+        text-align: center;
+        margin-top: 3rem;
+    }
+
+    /* IMPORTANT: Fix image overflow in preview */
+    .preview-shell img,
+    .preview-shell video,
+    .preview-shell iframe {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Form Styling */
+    .editor-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        flex-grow: 1;
+    }
+
+    .editor-field {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .editor-form label {
+        font-weight: 600;
+        color: #e0e6ed;
+        margin-bottom: 0.6rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .editor-form input[type="text"] {
+        background: #0b0c10;
+        border: 1px solid #2b3643;
+        border-radius: 8px;
+        padding: 0.9rem 1rem;
+        color: #e0e6ed;
+        font-family: inherit;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .editor-form input[type="text"]:focus {
+        outline: none;
+        border-color: #66fcf1;
+        box-shadow: 0 0 0 2px rgba(102, 252, 241, 0.2), inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .editor-form textarea {
+        display: none;
+    }
+
+    .editor-enhancement-note {
+        color: #6e7682;
+        font-size: 0.85rem;
+        margin-top: 0.8rem;
+    }
+
+    /* ToastUI Override - cleanly */
+    .editor-host {
+        border-radius: 8px;
+        overflow: hidden;
+        min-width: 0;
+        max-width: 100%;
+        border: 1px solid #2b3643;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        flex-grow: 1;
+        min-height: 500px;
+        background-color: #0b0c10;
+    }
+
+    /* Disable WYSIWYG mode switch & bottom tabs */
+    .toastui-editor-mode-switch,
+    .toastui-editor-defaultUI .toastui-editor-md-tab-container {
+        display: none !important;
+    }
+
+    .toastui-editor-defaultUI {
+        border: none !important;
+        height: 100% !important;
+    }
+
+    .toastui-editor-dark {
+        background-color: transparent !important;
+    }
+
+    .toastui-editor-dark .toastui-editor-defaultUI-toolbar {
+        background-color: #111418 !important;
+        border-bottom: 1px solid #1f2833 !important;
+    }
+
+    .toastui-editor-dark .toastui-editor-md-container {
+        background-color: #0b0c10 !important;
+    }
+
+    /* Actions */
+    .action-row {
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+        width: 1.2rem;
+        height: 1.2rem;
+        accent-color: #66fcf1;
+        cursor: pointer;
+    }
+    .checkbox-row label {
+        margin: 0;
+        cursor: pointer;
+        text-transform: none;
+        letter-spacing: normal;
+        color: #c5c6c7;
+    }
+
+    .button, .button-secondary {
+        padding: 0.8rem 1.8rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        text-decoration: none;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .button {
+        background: #45a29e;
+        color: #0b0c10;
+        box-shadow: 0 4px 12px rgba(69, 162, 158, 0.3);
+    }
+    .button:hover {
+        background: #66fcf1;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 252, 241, 0.4);
+    }
+
+    .button-secondary {
+        background: transparent;
+        color: #66fcf1;
+        border: 2px solid #66fcf1;
+    }
+    .button-secondary:hover {
+        background: rgba(102, 252, 241, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .save-note {
+        color: #66fcf1;
+        font-weight: 600;
+        background: rgba(102, 252, 241, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        animation: fadeOut 3s forwards;
+    }
+
+    @keyframes fadeOut {
+        0% { opacity: 1; transform: translateY(0); }
+        70% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    .field-error, .non-field-errors {
+        color: #ff6b6b;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+        background: rgba(255, 107, 107, 0.1);
+        padding: 0.5rem 0.8rem;
+        border-radius: 6px;
+        border-left: 3px solid #ff6b6b;
+    }
+
+    .editor-help {
+        background: #111418;
+        border: 1px solid #1f2833;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+    .editor-help strong {
+        color: #45a29e;
+        font-size: 1.1rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    .editor-help ul {
+        margin: 0 0 0 1.5rem;
+        color: #8b929a;
+        line-height: 1.6;
+    }
+    .editor-help li {
+        margin-bottom: 0.4rem;
     }
 </style>
 {% endblock %}
@@ -287,11 +353,11 @@
         <div>
             <h1>{% if post %}Edit Post{% else %}New Post{% endif %}</h1>
             <p class="editor-meta">
-                Staff-only Markdown editor{% if post %} for <strong>{{ post.title }}</strong>{% endif %}
+                Staff-only Markdown editor{% if post %} for <strong style="color: #c5c6c7;">{{ post.title }}</strong>{% endif %}
             </p>
         </div>
         {% if post %}
-            <a class="button-secondary" href="{{ post.get_absolute_url }}">View published post</a>
+            <a class="button-secondary" href="{{ post.get_absolute_url }}">View Live Post</a>
         {% endif %}
     </div>
 
@@ -319,12 +385,12 @@
                     {% endif %}
                 </div>
 
-                <div class="editor-field">
-                    <label for="{{ form.content.id_for_label }}">Markdown</label>
+                <div class="editor-field" style="flex-grow: 1; display: flex; flex-direction: column;">
+                    <label for="{{ form.content.id_for_label }}">Markdown Content</label>
                     {{ form.content }}
                     <div class="editor-host" id="toast-editor"></div>
                     <p class="editor-enhancement-note">
-                        Toast UI adds the toolbar, shortcuts, and editor chrome. The panel on the right still shows the sanitized site preview.
+                        Toast UI provides the markdown editor. WYSIWYG is disabled. The panel on the right shows the sanitized site preview.
                     </p>
                     {% if form.content.errors %}
                         <div class="field-error">{{ form.content.errors|join:", " }}</div>
@@ -333,13 +399,13 @@
 
                 <div class="checkbox-row">
                     {{ form.published }}
-                    <label for="{{ form.published.id_for_label }}">Published</label>
+                    <label for="{{ form.published.id_for_label }}">Publish this post to the public site</label>
                 </div>
 
                 <div class="action-row">
                     <button class="button" type="submit">Save Post</button>
                     {% if saved %}
-                        <span class="save-note">Saved.</span>
+                        <span class="save-note">Successfully Saved</span>
                     {% endif %}
                 </div>
             </form>
@@ -347,23 +413,23 @@
 
         <aside class="preview-panel">
             <h2>Live Preview</h2>
-            <p class="preview-meta">Rendered with the same Markdown sanitizer the public site uses.</p>
+            <p class="preview-meta">Rendered automatically with the site's Markdown sanitizer.</p>
             <div class="preview-shell post-content" id="preview-shell">
                 {% if preview_html %}
                     {{ preview_html }}
                 {% else %}
-                    <p class="preview-placeholder">Start typing to preview your post.</p>
+                    <p class="preview-placeholder">Start typing to see your live preview here.</p>
                 {% endif %}
             </div>
         </aside>
     </div>
 
     <section class="editor-help">
-        <strong>Quick notes</strong>
+        <strong>Quick Tips</strong>
         <ul>
-            <li>Leave the slug blank and it will be generated from the title.</li>
-            <li>Use fenced code blocks, headings, lists, links, and images with normal Markdown syntax.</li>
-            <li>Scripts and unsafe embeds are stripped from rendered output.</li>
+            <li>Leave the slug blank and it will be auto-generated from your title.</li>
+            <li>Use standard Markdown syntax for fenced code blocks, headings, lists, links, and images.</li>
+            <li>Scripts, unsafe embeds, and unknown HTML tags are automatically stripped from the rendered output.</li>
         </ul>
     </section>
 </section>
@@ -393,7 +459,7 @@
         };
 
         const renderPlaceholder = () => {
-            previewShell.innerHTML = '<p class="preview-placeholder">Start typing to preview your post.</p>';
+            previewShell.innerHTML = '<p class="preview-placeholder">Start typing to see your live preview here.</p>';
         };
 
         const updatePreview = async () => {
@@ -430,19 +496,19 @@
 
         const queuePreview = () => {
             window.clearTimeout(timerId);
-            timerId = window.setTimeout(updatePreview, 180);
+            timerId = window.setTimeout(updatePreview, 300);
         };
 
         if (editorHost && window.toastui?.Editor) {
             editor = new window.toastui.Editor({
                 el: editorHost,
-                height: window.matchMedia("(max-width: 860px)").matches ? "32rem" : "38rem",
+                height: "100%", // Let css flex dictate the height
                 initialEditType: "markdown",
-                previewStyle: window.matchMedia("(max-width: 1180px)").matches ? "tab" : "vertical",
+                previewStyle: "tab", // Use tab to prevent splitting, then we hide the tabs in CSS
                 initialValue: contentField.value,
                 autofocus: false,
                 usageStatistics: false,
-                hideModeSwitch: false,
+                hideModeSwitch: true, // Disables the broken WYSIWYG toggle
                 theme: "dark",
                 toolbarItems: [
                     ["heading", "bold", "italic", "strike"],
@@ -476,7 +542,6 @@
                 },
             });
             getMarkdown = () => editor.getMarkdown();
-            contentField.classList.add("editor-source-hidden");
             syncEditorValue();
             editor.on("change", () => {
                 syncEditorValue();
