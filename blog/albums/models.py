@@ -4,6 +4,10 @@ import uuid
 from django.core.files.base import ContentFile
 from django.db import models
 from PIL import Image
+import pillow_heif
+
+# Register AVIF plugin so Pillow can read/write AVIF images
+pillow_heif.register_avif_opener()
 
 
 THUMBNAIL_MAX_WIDTH = 400
@@ -56,6 +60,9 @@ class Photo(models.Model):
         elif self.image.name.lower().endswith(".webp"):
             fmt = "WEBP"
             ext = ".webp"
+        elif self.image.name.lower().endswith(".avif"):
+            fmt = "AVIF"
+            ext = ".avif"
 
         buf = io.BytesIO()
         save_kwargs = {"format": fmt}
