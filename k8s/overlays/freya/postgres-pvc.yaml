@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: s8njee-postgres-data
+  name: s8njee-postgres-data-freya
 spec:
   accessModes:
     - ReadWriteOnce

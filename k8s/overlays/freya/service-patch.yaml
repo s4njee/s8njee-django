@@ -5,6 +5,7 @@ metadata:
 spec:
   $patch: replace
   type: LoadBalancer
+  loadBalancerIP: 192.168.1.248
   selector:
     app: s8njee-web
   ports:

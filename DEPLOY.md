@@ -222,23 +222,114 @@ kubectl --context=netcup exec -n s8njee-web s8njee-postgres-0 -- \
 
 ## Freya
 
-The `freya` overlay still exists, but it is not the public Netcup deployment.
+The `freya` overlay is the secondary/dev deployment. It is useful for LAN testing and recovery work, but it is not the public Netcup deployment.
 
 Freya uses:
 
-- Argo CD `Application`: `s8njee-web-freya`
 - namespace: `default`
 - manifests: `k8s/overlays/freya`
 - service access: `http://192.168.1.248:4201/`
-- PostgreSQL PVC: `s8njee-postgres-data`
+- app image registry: `192.168.1.248:5001`
+- app image pull secret: `regcred`
+- PostgreSQL image: `postgres:18.3-alpine3.23`
+- PostgreSQL PVC: `s8njee-postgres-data-freya`
+- PostgreSQL placement: pinned to node `freya`
+
+Freya does have Argo CD installed, but the active app list currently does not include `s8njee-web-freya`. Treat Freya deploys as manual `kubectl apply -k k8s/overlays/freya` unless an Argo application is recreated intentionally.
 
 For Freya-specific deploys:
 
 ```bash
-kubectl --context=freya get application s8njee-web-freya -n argocd
 kubectl --context=freya get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
 kubectl --context=freya rollout status deploy/s8njee-web -n default
 kubectl --context=freya rollout status deploy/s8njee-postgres -n default
+curl -I http://192.168.1.248:4201/
 ```
 
-Do not delete or rename `s8njee-postgres-data` unless you are intentionally replacing the Freya database.
+### Freya Image Build And Registry
+
+Freya pulls from a LAN HTTP registry on `192.168.1.248:5001`. Because the registry is HTTP, both Docker and k3s/containerd on `freya` must be configured to allow the registry as insecure.
+
+The k3s registry file on `freya` should include:
+
+```yaml
+mirrors:
+  "192.168.1.248:5001":
+    endpoint:
+      - "http://192.168.1.248:5001"
+```
+
+After editing `/etc/rancher/k3s/registries.yaml`, restart k3s:
+
+```bash
+ssh freya.local 'sudo systemctl restart k3s'
+```
+
+The Docker daemon on `freya` also needs `192.168.1.248:5001` in `/etc/docker/daemon.json` under `insecure-registries`, followed by a Docker restart. This matters when building and pushing images from the Freya node itself.
+
+The cluster pull secret must match the new registry address. If pods fail with `authorization failed: no basic auth credentials`, recreate `regcred` for `192.168.1.248:5001`:
+
+```bash
+kubectl --context=freya create secret docker-registry regcred \
+  --docker-server=192.168.1.248:5001 \
+  --docker-username=dummyuser \
+  --docker-password='dummy-password' \
+  --dry-run=client -o yaml \
+  | kubectl --context=freya apply -f -
+```
+
+If local Docker cannot reach `ssh://freya.local`, sync the working tree to Freya and build from there:
+
+```bash
+rsync -az --delete --exclude .git --exclude .idea ./ freya.local:/home/sanjee/tmp/s8njee-web/
+ssh freya.local 'cd /home/sanjee/tmp/s8njee-web/blog && docker buildx build --platform linux/amd64 --push -t 192.168.1.248:5001/s8njee-web:<tag> .'
+```
+
+Update `k8s/overlays/freya/kustomization.yaml` with the pushed tag, then apply:
+
+```bash
+kubectl --context=freya apply -k k8s/overlays/freya
+kubectl --context=freya rollout status deploy/s8njee-web -n default
+```
+
+### Freya Node Address
+
+The Freya node and service should advertise `192.168.1.248`, not the stale `192.168.1.156`.
+
+Check both values:
+
+```bash
+kubectl --context=freya get node freya -o wide
+kubectl --context=freya get svc s8njee-web -n default -o wide
+```
+
+If the node still shows `EXTERNAL-IP` as `192.168.1.156`, set `/etc/rancher/k3s/config.yaml` on `freya` to:
+
+```yaml
+node-external-ip: 192.168.1.248
+```
+
+Then restart k3s:
+
+```bash
+ssh freya.local 'sudo systemctl restart k3s'
+```
+
+The Freya service manifest also pins `loadBalancerIP: 192.168.1.248`, but k3s will keep reporting the stale service address until the node external IP is corrected.
+
+### Freya PostgreSQL
+
+Freya PostgreSQL is currently disposable dev data. The database was recreated on Postgres 18 and reseeded from `blog/fixtures/seed_content.json`.
+
+Do not delete or rename `s8njee-postgres-data-freya` unless you are intentionally replacing the Freya database. If the database is intentionally recreated, the app startup should run migrations and seed the fixture automatically.
+
+One important startup trap: `manage.py` defaults to `blog.settings.development`, which uses SQLite. The production container entrypoint must export `DJANGO_SETTINGS_MODULE=blog.settings.production` before running migrations or `loaddata`; otherwise startup can appear to seed successfully while the live ASGI app still points at empty Postgres and returns HTTP 500.
+
+If Freya returns 500 after a DB recreate, verify that Postgres actually has tables and content:
+
+```bash
+kubectl --context=freya exec deploy/s8njee-postgres -n default -- \
+  env PGPASSWORD=s8njee-local psql -h 127.0.0.1 -U s8njee -d s8njee -Atc 'select count(*) from posts_post;'
+
+kubectl --context=freya logs deploy/s8njee-web -n default --tail=120
+```

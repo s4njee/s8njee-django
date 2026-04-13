@@ -12,9 +12,11 @@ spec:
       labels:
         app: s8njee-postgres
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: freya
       containers:
         - name: postgres
-          image: postgres:17-alpine
+          image: postgres:18.3-alpine3.23
           imagePullPolicy: IfNotPresent
           ports:
             - name: postgres
@@ -52,4 +54,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: s8njee-postgres-data
+            claimName: s8njee-postgres-data-freya

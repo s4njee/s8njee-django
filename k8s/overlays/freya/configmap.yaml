@@ -9,7 +9,7 @@ data:
   CSRF_TRUSTED_ORIGINS: "http://192.168.1.248:4201"
   DB_ENGINE: "django.db.backends.postgresql"
   DB_NAME: "s8njee"
-  DB_HOST: "s8njee-postgres"
+  DB_HOST: "10.43.185.137"
   DB_PORT: "5432"
   DB_BACKUP_BUCKET: "s8njee-photoblog"
   DB_BACKUP_PREFIX: "backups/postgres/freya/s8njee"

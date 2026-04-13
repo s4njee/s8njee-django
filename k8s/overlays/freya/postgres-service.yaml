@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: s8njee-postgres
 spec:
+  clusterIP: 10.43.185.137
   selector:
     app: s8njee-postgres
   ports:
