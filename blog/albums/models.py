@@ -6,9 +6,8 @@ from django.db import models
 from PIL import Image
 import pillow_heif
 
-# Register AVIF plugin so Pillow can read/write AVIF images
-pillow_heif.register_avif_opener()
-
+# Register HEIF/AVIF support in Pillow (handles both .heic and .avif)
+pillow_heif.register_heif_opener()
 
 THUMBNAIL_MAX_WIDTH = 400
 
@@ -51,18 +50,16 @@ class Photo(models.Model):
         img = Image.open(self.image)
         img.thumbnail((THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_WIDTH * 2), Image.LANCZOS)
 
-        # Determine format
-        fmt = "JPEG"
-        ext = ".jpg"
-        if self.image.name.lower().endswith(".png"):
-            fmt = "PNG"
-            ext = ".png"
-        elif self.image.name.lower().endswith(".webp"):
-            fmt = "WEBP"
-            ext = ".webp"
-        elif self.image.name.lower().endswith(".avif"):
-            fmt = "AVIF"
-            ext = ".avif"
+        # Determine output format based on stored file extension
+        name = self.image.name.lower()
+        if name.endswith(".png"):
+            fmt, ext = "PNG", ".png"
+        elif name.endswith(".webp"):
+            fmt, ext = "WEBP", ".webp"
+        elif name.endswith(".avif"):
+            fmt, ext = "AVIF", ".avif"
+        else:
+            fmt, ext = "JPEG", ".jpg"
 
         buf = io.BytesIO()
         save_kwargs = {"format": fmt}
