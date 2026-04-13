@@ -18,6 +18,18 @@ pillow_heif.register_heif_opener()
 
 RAW_EXTENSIONS = {'.nef', '.cr2', '.cr3', '.dng', '.arw', '.orf', '.raf', '.rw2'}
 
+# Cap the longest edge at this size (1920 = standard 1080p width)
+MAX_DIMENSION = 1920
+
+
+def _downscale_if_needed(img: Image.Image) -> Image.Image:
+    """Return a resized copy if either dimension exceeds MAX_DIMENSION."""
+    w, h = img.size
+    if w <= MAX_DIMENSION and h <= MAX_DIMENSION:
+        return img
+    scale = MAX_DIMENSION / max(w, h)
+    return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
 
 class AlbumListView(ListView):
     model = Album
@@ -80,6 +92,7 @@ def photo_upload_single(request, album_pk):
                 rgb = raw.postprocess()
 
             img = Image.fromarray(rgb)
+            img = _downscale_if_needed(img)
 
             # 3. Encode as AVIF, injecting rescued EXIF
             out_buf = io.BytesIO()
@@ -96,6 +109,23 @@ def photo_upload_single(request, album_pk):
             return JsonResponse(
                 {"error": f"Failed to process RAW file: {e}"}, status=400
             )
+
+    # Downscale regular (non-RAW) images exceeding 1080p
+    else:
+        try:
+            orig = Image.open(image)
+            resized = _downscale_if_needed(orig)
+            if resized is not orig:  # only rewrite if we actually scaled
+                out_buf = io.BytesIO()
+                fmt = orig.format or "JPEG"
+                save_kwargs = {"format": fmt}
+                if fmt == "JPEG":
+                    save_kwargs["quality"] = 85
+                resized.save(out_buf, **save_kwargs)
+                out_buf.seek(0)
+                image = ContentFile(out_buf.read(), name=image.name)
+        except Exception:
+            pass  # If anything goes wrong, upload the original untouched
 
     photo = Photo.objects.create(album=album, image=image)
     return JsonResponse({"id": str(photo.pk), "url": photo.image.url}, status=201)
