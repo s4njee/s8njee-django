@@ -31,6 +31,13 @@ const CSRF = "{{ csrf_token }}";
 let queue = [];
 let uploading = false;
 
+function randomUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 const RAW_EXTENSIONS = new Set(['nef','cr2','cr3','dng','arw','orf','raf','rw2']);
 
 function isAcceptedFile(f) {
@@ -42,7 +49,7 @@ function isAcceptedFile(f) {
 function addFiles(fileList) {
   for (const f of fileList) {
     if (!isAcceptedFile(f)) continue;
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     queue.push({ id, file: f, status: "pending" });
     renderItem(id, f, RAW_EXTENSIONS.has(f.name.split('.').pop().toLowerCase()));
   }
