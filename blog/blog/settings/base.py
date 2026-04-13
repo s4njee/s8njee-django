@@ -3,7 +3,9 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Adjusted BASE_DIR for settings/package structure
+# blog/blog/settings/base.py -> parent is blog/blog/settings/ -> parent.parent is blog/blog/ -> parent.parent.parent is blog/
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 
@@ -28,15 +30,8 @@ def env_list(name, default=None):
         return list(default or [])
     return [item.strip() for item in value.split(',') if item.strip()]
 
-DEBUG = env_bool('DEBUG', True)
 
 SECRET_KEY = env('SECRET_KEY', 'local-dev-insecure-secret-key')
-if not DEBUG and SECRET_KEY == 'local-dev-insecure-secret-key':
-    raise ImproperlyConfigured('Set SECRET_KEY in blog/.env before running with DEBUG=False.')
-
-ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
-
-CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -80,17 +75,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'blog.wsgi.application'
-
-DATABASES = {
-    'default': {
-        'ENGINE': env('DB_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': env('DB_NAME', BASE_DIR / 'db.sqlite3'),
-        'USER': env('DB_USER', ''),
-        'PASSWORD': env('DB_PASSWORD', ''),
-        'HOST': env('DB_HOST', ''),
-        'PORT': env('DB_PORT', ''),
-    }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -142,11 +126,3 @@ LOGIN_REDIRECT_URL = '/photos/'
 LOGOUT_REDIRECT_URL = '/photos/'
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# Security settings for production
-if not DEBUG and env_bool('ENABLE_SSL', False):
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True

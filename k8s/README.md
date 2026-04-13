@@ -12,7 +12,7 @@ These manifests deploy the Django app directly behind a Traefik ingress controll
 - A `Service` exposing the app on port 80 inside the cluster
 - Environment-specific overlays for:
   - `netcup`, which now includes its own PostgreSQL 18 instance in the `s8njee-web` namespace
-  - `mars`, which includes a separate PostgreSQL deployment, PVC, and service for this app
+  - `freya`, which includes a separate PostgreSQL deployment, PVC, and service for this app
 - Overlay-specific `ConfigMap`, secret inputs, and access manifests
 - Argo CD `Application` manifests in `k8s/argocd/` that point at each overlay
 - Argo CD Image Updater for the netcup overlay so image tags move without Git deploy commits
@@ -37,7 +37,7 @@ Netcup no longer needs a manifest commit after this step. The Image Updater cont
 
 These manifests do not need a full rewrite for Argo CD. Argo CD supports Kustomize natively, so the main shift is:
 
-- point an Argo CD `Application` at `k8s/overlays/netcup` or `k8s/overlays/mars`
+- point an Argo CD `Application` at `k8s/overlays/netcup` or `k8s/overlays/freya`
 - keep each overlay fully renderable from Git
 - move away from local-only secret inputs
 
@@ -46,7 +46,7 @@ This repo now includes:
 - `k8s/argocd/argocd-image-updater-install.yaml`
 - `k8s/argocd/image-updater.yaml`
 - `k8s/argocd/netcup-application.yaml`
-- `k8s/argocd/mars-application.yaml`
+- `k8s/argocd/freya-application.yaml`
 - `k8s/argocd/argo-server-certificate.yaml`
 - `k8s/argocd/argo-server-ingressroute.yaml`
 - `k8s/argocd/argo-server-servers-transport.yaml`
@@ -66,7 +66,7 @@ Or install one environment at a time with:
 
 ```bash
 kubectl apply -n argocd -f k8s/argocd/netcup-application.yaml
-kubectl apply -n argocd -f k8s/argocd/mars-application.yaml
+kubectl apply -n argocd -f k8s/argocd/freya-application.yaml
 ```
 
 The same `k8s/argocd` Kustomize stack also exposes Argo CD at `https://argo.s8njee.com` through Traefik using the existing `argocd-server` Service.
@@ -115,7 +115,7 @@ kubeseal \
 rm k8s/overlays/netcup/secret.unsealed.yaml
 ```
 
-Repeat the same pattern for `mars`, including the PostgreSQL keys in the unsealed input secret.
+Repeat the same pattern for `freya`, including the PostgreSQL keys in the unsealed input secret.
 
 If your controller name or namespace differs from the defaults, add `--controller-name` and `--controller-namespace` to `kubeseal`.
 
@@ -138,9 +138,9 @@ Apply with:
 kubectl --context=netcup apply -k k8s/overlays/netcup
 ```
 
-### Mars
+### Freya
 
-The `mars` overlay includes:
+The `freya` overlay includes:
 
 - app deployment and service
 - PostgreSQL deployment
@@ -153,7 +153,7 @@ The `mars` overlay includes:
 Apply with:
 
 ```bash
-kubectl --context=mars apply -k k8s/overlays/mars
+kubectl --context=freya apply -k k8s/overlays/freya
 ```
 
 ## Configure The Overlay
@@ -166,9 +166,9 @@ Edit these files before applying:
 - for `netcup`, `DB_HOST` is already wired to the in-cluster PostgreSQL service
 - `k8s/overlays/netcup/sealed-secret.yaml`
   - replace the placeholder encrypted values with real `kubeseal` output
-- `k8s/overlays/mars/configmap.yaml`
+- `k8s/overlays/freya/configmap.yaml`
   - adjust the IP-based `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` values if you will access the service another way
-- `k8s/overlays/mars/sealed-secret.yaml`
+- `k8s/overlays/freya/sealed-secret.yaml`
   - replace the placeholder encrypted values with real `kubeseal` output
 
 ## Verify

@@ -83,18 +83,18 @@ docker build -t <registry>/<image>:<tag> ./blog
 docker push <registry>/<image>:<tag>
 ```
 
-For Mars, the cluster can currently pull from the LAN registry endpoint `192.168.1.156:5001`.
+For Freya, the cluster can currently pull from the LAN registry endpoint `192.168.1.248:5001`.
 
-Current Mars image:
+Current Freya image:
 
-- `192.168.1.156:5001/s8njee-web:20260323-184500-amd64`
+- `192.168.1.248:5001/s8njee-web:20260323-184500-amd64`
 
 To build an amd64 image explicitly:
 
 ```bash
 docker buildx build \
   --platform linux/amd64 \
-  -t 192.168.1.156:5001/s8njee-web:<tag> \
+  -t 192.168.1.248:5001/s8njee-web:<tag> \
   --push \
   ./blog
 ```
@@ -102,16 +102,16 @@ docker buildx build \
 To verify image architecture:
 
 ```bash
-docker buildx imagetools inspect 192.168.1.156:5001/s8njee-web:<tag>
+docker buildx imagetools inspect 192.168.1.248:5001/s8njee-web:<tag>
 ```
 
 ## Kubernetes
 
 Base manifests live in [`k8s/base/`](/Users/sanjee/Documents/projects/s8njee-web/k8s/base). Environment-specific configuration lives in overlays.
 
-### Mars
+### Freya
 
-The main active Kubernetes deployment path is [`k8s/overlays/mars/`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars).
+The main active Kubernetes deployment path is [`k8s/overlays/freya/`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya).
 
 What it deploys:
 
@@ -121,51 +121,51 @@ What it deploys:
 - `s8njee-web` `LoadBalancer` service on port `4201`
 - `s8njee-postgres` internal `ClusterIP` service
 
-Current Mars assumptions:
+Current Freya assumptions:
 
 - namespace: `default`
 - image pull secret: `regcred`
-- registry address reachable from cluster: `192.168.1.156:5001`
-- service address: `http://192.168.1.156:4201/`
+- registry address reachable from cluster: `192.168.1.248:5001`
+- service address: `http://192.168.1.248:4201/`
 - DB host inside cluster: `s8njee-postgres`
 - storage class for Postgres PVC: `local-path`
 
 Important manifest files:
 
-- [`k8s/overlays/mars/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/kustomization.yaml)
-- [`k8s/overlays/mars/configmap.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/configmap.yaml)
-- `k8s/overlays/mars/secret.env` (local only, ignored by git)
-- [`k8s/overlays/mars/secret.env.example`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/secret.env.example)
-- [`k8s/overlays/mars/postgres-deployment.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/postgres-deployment.yaml)
-- [`k8s/overlays/mars/service-patch.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/service-patch.yaml)
-- [`k8s/overlays/mars/deployment-patch.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/deployment-patch.yaml)
+- [`k8s/overlays/freya/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/kustomization.yaml)
+- [`k8s/overlays/freya/configmap.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/configmap.yaml)
+- `k8s/overlays/freya/secret.env` (local only, ignored by git)
+- [`k8s/overlays/freya/secret.env.example`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/secret.env.example)
+- [`k8s/overlays/freya/postgres-deployment.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/postgres-deployment.yaml)
+- [`k8s/overlays/freya/service-patch.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/service-patch.yaml)
+- [`k8s/overlays/freya/deployment-patch.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/deployment-patch.yaml)
 
 Render manifests:
 
 ```bash
-kubectl kustomize k8s/overlays/mars
+kubectl kustomize k8s/overlays/freya
 ```
 
 Client-side validation:
 
 ```bash
-kubectl apply --dry-run=client -k k8s/overlays/mars
+kubectl apply --dry-run=client -k k8s/overlays/freya
 ```
 
 Apply:
 
 ```bash
-cp k8s/overlays/mars/secret.env.example k8s/overlays/mars/secret.env
-kubectl --context=mars apply -k k8s/overlays/mars
+cp k8s/overlays/freya/secret.env.example k8s/overlays/freya/secret.env
+kubectl --context=freya apply -k k8s/overlays/freya
 ```
 
 Verify:
 
 ```bash
-kubectl --context=mars get pods,svc,pvc -n default | rg s8njee
-kubectl --context=mars rollout status deployment/s8njee-postgres -n default
-kubectl --context=mars rollout status deployment/s8njee-web -n default
-curl -I http://192.168.1.156:4201/
+kubectl --context=freya get pods,svc,pvc -n default | rg s8njee
+kubectl --context=freya rollout status deployment/s8njee-postgres -n default
+kubectl --context=freya rollout status deployment/s8njee-web -n default
+curl -I http://192.168.1.248:4201/
 ```
 
 ### Netcup
@@ -203,9 +203,9 @@ kubectl --context=netcup rollout status deployment/s8njee-web -n s8njee-web
 
 ## Secrets And Caution
 
-The Mars overlay now reads its secrets from `k8s/overlays/mars/secret.env`, which is intentionally ignored by git.
+The Freya overlay now reads its secrets from `k8s/overlays/freya/secret.env`, which is intentionally ignored by git.
 
-That keeps the active deployment path usable without storing Mars secrets in tracked manifest files.
+That keeps the active deployment path usable without storing Freya secrets in tracked manifest files.
 
 Recommended next cleanup:
 
@@ -215,23 +215,23 @@ Recommended next cleanup:
 
 ## Useful Commands
 
-Mars rollout status:
+Freya rollout status:
 
 ```bash
-kubectl --context=mars rollout status deployment/s8njee-web -n default
-kubectl --context=mars rollout status deployment/s8njee-postgres -n default
+kubectl --context=freya rollout status deployment/s8njee-web -n default
+kubectl --context=freya rollout status deployment/s8njee-postgres -n default
 ```
 
-Mars logs:
+Freya logs:
 
 ```bash
-kubectl --context=mars logs deployment/s8njee-web -n default --tail=200
-kubectl --context=mars logs deployment/s8njee-postgres -n default --tail=200
+kubectl --context=freya logs deployment/s8njee-web -n default --tail=200
+kubectl --context=freya logs deployment/s8njee-postgres -n default --tail=200
 ```
 
 Check the active image in the running pod:
 
 ```bash
-kubectl --context=mars get pod -n default -o wide | rg s8njee-web
-kubectl --context=mars describe pod <pod-name> -n default
+kubectl --context=freya get pod -n default -o wide | rg s8njee-web
+kubectl --context=freya describe pod <pod-name> -n default
 ```

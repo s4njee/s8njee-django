@@ -5,7 +5,7 @@ resources:
   - argocd-image-updater-install.yaml
   - image-updater.yaml
   - netcup-application.yaml
-  - mars-application.yaml
+  - freya-application.yaml
   - argo-server-certificate.yaml
   - argo-server-servers-transport.yaml
   - argo-server-ingressroute.yaml

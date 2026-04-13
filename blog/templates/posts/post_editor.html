@@ -7,49 +7,61 @@
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css">
 <style>
     body {
-        max-width: 1380px;
+        width: 100%;
+        max-width: none;
+        padding: 1rem;
     }
     .layout {
-        display: block;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
     }
     .main {
         width: 100%;
+        min-width: 0;
     }
     .sidebar {
         display: none;
     }
+    .editor-workspace {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 1rem;
+        min-width: 0;
+    }
     .editor-page {
         display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-        gap: 1.5rem;
+        grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.72fr);
+        gap: 1rem;
         align-items: start;
+        min-width: 0;
     }
     .editor-panel,
     .preview-panel,
     .editor-help {
-        background: #171717;
-        border: 1px solid #2b2b2b;
-        border-radius: 0.9rem;
+        background: #161616;
+        border: 1px solid #303030;
+        border-radius: 8px;
+        min-width: 0;
     }
     .editor-panel,
     .preview-panel {
-        padding: 1.25rem;
-        min-width: 0;
+        padding: 1rem;
     }
     .editor-help {
-        margin-top: 1.25rem;
-        padding: 1rem 1.25rem;
+        padding: 0.9rem 1rem;
     }
     .editor-header {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 1rem;
-        align-items: baseline;
-        margin-bottom: 1rem;
+        align-items: end;
+        min-width: 0;
     }
     .editor-header h1,
     .preview-panel h2 {
         margin: 0;
+        line-height: 1.1;
     }
     .editor-meta {
         color: #999;
@@ -57,7 +69,12 @@
     }
     .editor-form {
         display: grid;
-        gap: 1rem;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.9rem;
+        min-width: 0;
+    }
+    .editor-field {
+        min-width: 0;
     }
     .editor-form label {
         display: block;
@@ -71,15 +88,15 @@
         max-width: 100%;
         box-sizing: border-box;
         border: 1px solid #343434;
-        border-radius: 0.7rem;
+        border-radius: 8px;
         background: #0f0f0f;
         color: #f2f2f2;
-        padding: 0.85rem 0.95rem;
+        padding: 0.7rem 0.8rem;
         font: inherit;
     }
     .editor-form textarea {
         resize: vertical;
-        min-height: 26rem;
+        min-height: 30rem;
         line-height: 1.65;
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
@@ -95,31 +112,68 @@
     .editor-enhancement-note {
         color: #9a9a9a;
         font-size: 0.88rem;
-        margin-top: 0.45rem;
+        margin-top: 0.55rem;
     }
     .editor-host {
-        min-height: 34rem;
+        min-height: 38rem;
         width: 100%;
         max-width: 100%;
-        border-radius: 0.8rem;
+        min-width: 0;
+        border-radius: 8px;
         overflow: hidden;
+    }
+    .editor-host > * {
+        min-width: 0;
     }
     .toastui-editor-defaultUI,
     .toastui-editor-main,
     .toastui-editor-md-container,
-    .toastui-editor-ww-container {
+    .toastui-editor-ww-container,
+    .toastui-editor-md-splitter,
+    .toastui-editor-md-preview,
+    .toastui-editor-md-editor,
+    .toastui-editor,
+    .toastui-editor-contents {
+        width: 100% !important;
         max-width: 100%;
+        min-width: 0 !important;
+        box-sizing: border-box;
     }
     .toastui-editor-dark.toastui-editor-defaultUI {
         width: 100%;
-        border-radius: 0.8rem;
+        border-radius: 8px;
         border-color: #2f3138;
-        box-sizing: border-box;
+        overflow: hidden;
     }
     .toastui-editor-dark .toastui-editor-defaultUI-toolbar,
     .toastui-editor-dark .toastui-editor-mode-switch {
         background: #16181d;
         border-color: #262931;
+    }
+    .toastui-editor-defaultUI-toolbar {
+        display: flex !important;
+        flex-wrap: wrap;
+        align-items: center;
+        height: auto !important;
+        min-height: 45px;
+        row-gap: 0.25rem;
+        overflow: visible;
+    }
+    .toastui-editor-toolbar-group {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        max-width: 100%;
+    }
+    .toastui-editor-toolbar-icons {
+        flex: 0 0 auto;
+    }
+    .toastui-editor-md-container {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .toastui-editor-md-container .toastui-editor-md-splitter,
+    .toastui-editor-md-container .toastui-editor-md-preview {
+        display: none;
     }
     .checkbox-row {
         display: flex;
@@ -145,7 +199,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 999px;
+        border-radius: 8px;
         padding: 0.75rem 1rem;
         text-decoration: none;
         font-weight: 600;
@@ -176,8 +230,11 @@
         margin: 0.35rem 0 1rem;
     }
     .preview-shell {
-        min-height: 26rem;
+        min-height: 38rem;
+        min-width: 0;
+        max-width: 100%;
         overflow-wrap: anywhere;
+        overflow-x: auto;
     }
     .preview-placeholder {
         color: #888;
@@ -203,14 +260,29 @@
     }
     @media (max-width: 700px) {
         body {
-            padding: 1rem;
+            padding: 0.75rem;
+        }
+        header {
+            margin-bottom: 1.25rem;
+        }
+        .editor-header {
+            grid-template-columns: 1fr;
+            align-items: start;
+        }
+        .action-row,
+        .button,
+        .button-secondary {
+            width: 100%;
+        }
+        .editor-host {
+            min-height: 32rem;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<section>
+<section class="editor-workspace">
     <div class="editor-header">
         <div>
             <h1>{% if post %}Edit Post{% else %}New Post{% endif %}</h1>
@@ -231,7 +303,7 @@
                     <div class="non-field-errors">{{ form.non_field_errors }}</div>
                 {% endif %}
 
-                <div>
+                <div class="editor-field">
                     <label for="{{ form.title.id_for_label }}">Title</label>
                     {{ form.title }}
                     {% if form.title.errors %}
@@ -239,7 +311,7 @@
                     {% endif %}
                 </div>
 
-                <div>
+                <div class="editor-field">
                     <label for="{{ form.slug.id_for_label }}">Slug</label>
                     {{ form.slug }}
                     {% if form.slug.errors %}
@@ -247,7 +319,7 @@
                     {% endif %}
                 </div>
 
-                <div>
+                <div class="editor-field">
                     <label for="{{ form.content.id_for_label }}">Markdown</label>
                     {{ form.content }}
                     <div class="editor-host" id="toast-editor"></div>
@@ -306,6 +378,7 @@
         const editorHost = document.getElementById("toast-editor");
         const previewShell = document.getElementById("preview-shell");
         const previewUrl = "{% url 'post_editor_preview' %}";
+        const imageUploadUrl = "{% url 'post_editor_image_upload' %}";
         const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value;
         if (!contentField || !previewShell || !csrfToken) return;
 
@@ -378,6 +451,29 @@
                     ["table", "image", "link"],
                     ["code", "codeblock"],
                 ],
+                hooks: {
+                    addImageBlobHook: async (blob, callback) => {
+                        const formData = new FormData();
+                        formData.append("image", blob, blob.name || "blog-image");
+
+                        try {
+                            const response = await fetch(imageUploadUrl, {
+                                method: "POST",
+                                headers: {
+                                    "X-CSRFToken": csrfToken,
+                                },
+                                body: formData,
+                            });
+                            const payload = await response.json();
+                            if (!response.ok || !payload.url) {
+                                throw new Error(payload.error || "Image upload failed");
+                            }
+                            callback(payload.url, payload.alt || blob.name || "Uploaded image");
+                        } catch (error) {
+                            window.alert(error.message || "Image upload failed");
+                        }
+                    },
+                },
             });
             getMarkdown = () => editor.getMarkdown();
             contentField.classList.add("editor-source-hidden");

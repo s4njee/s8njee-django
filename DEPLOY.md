@@ -2,74 +2,149 @@
 
 This project is deployed to Kubernetes with Argo CD.
 
-The current `mars` deployment uses these persistent database resources:
+The public production deployment is the `netcup` cluster. It serves `https://blog.s8njee.com` through Traefik and uses:
 
-- `StatefulSet`: `s8njee-postgres`
-- `Service`: `s8njee-postgres`
-- `PersistentVolumeClaim`: `s8njee-postgres-data`
-- `Secret`: `s8njee-web-secrets` generated from the committed `SealedSecret`
+- Argo CD `Application`: `s8njee-web-netcup`
+- Kubernetes namespace: `s8njee-web`
+- App image: `registry.s8njee.com/s8njee-web:<tag>`
+- App manifests: `k8s/overlays/netcup`
+- Django deployment: `s8njee-web`
+- PostgreSQL StatefulSet: `s8njee-postgres`
+- PostgreSQL pod: `s8njee-postgres-0`
+- PostgreSQL services: `s8njee-postgres` and `s8njee-postgres-headless`
+- App secret: `s8njee-web-secrets`, generated from the committed `SealedSecret`
+- Registry pull secret: `registry-s8njee-pull`, generated from the committed `SealedSecret`
+- Media storage: S3 bucket `s8njee-photoblog`
 
-## Safe Deploy Rule
+## Netcup Deploy Flow
 
-If you want to deploy a new app version without overwriting the PostgreSQL database, do not delete or rename:
+Netcup deploys are image-driven. Build and push a new image tag, then let Argo CD Image Updater point the `s8njee-web-netcup` application at the newest image.
 
-- `k8s/overlays/mars/postgres-pvc.yaml`
-- the PVC name `s8njee-postgres-data`
-- the PostgreSQL StatefulSet name `s8njee-postgres`
-- the database keys inside `k8s/overlays/mars/sealed-secret.yaml`
+From the repo root:
 
-Argo CD can safely roll the app forward in place as long as those resources keep the same identity.
+```bash
+TAG="sha-$(git rev-parse HEAD)"
+docker buildx build --platform linux/amd64 --push \
+  -t "registry.s8njee.com/s8njee-web:${TAG}" \
+  ./blog
+```
 
-## Normal Mars Deploy
+After the image is pushed:
 
-1. Build and push a new app image.
-2. Update the image tag in [`k8s/overlays/mars/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/kustomization.yaml).
-3. Commit and push to `main`.
-4. Let Argo CD sync `s8njee-web-mars` from `https://github.com/s4njee/s8njee-django.git`.
+1. Argo CD Image Updater watches `registry.s8njee.com/s8njee-web`.
+2. It updates the `s8njee-web-netcup` Argo CD application in-cluster.
+3. Argo CD syncs `k8s/overlays/netcup`.
+4. Kubernetes rolls the `s8njee-web` deployment.
+5. `blog/start.sh` runs migrations, seed loading if the DB is empty, `collectstatic`, then starts Uvicorn.
 
-That flow updates the Django app without recreating the PostgreSQL volume.
+You normally do not need to edit `k8s/overlays/netcup/kustomization.yaml` for an app deploy. The checked-in image tag is only the Git baseline; Image Updater moves the live Netcup application after a newer registry tag exists.
+
+## Netcup First-Time Or Manual Apply
+
+The Argo CD application points at:
+
+- repo: `https://github.com/s4njee/s8njee-django.git`
+- branch: `main`
+- path: `k8s/overlays/netcup`
+- destination namespace: `s8njee-web`
+
+Install or refresh the Argo CD stack:
+
+```bash
+kubectl --context=netcup apply -n argocd -k k8s/argocd
+```
+
+Apply only the Netcup application:
+
+```bash
+kubectl --context=netcup apply -n argocd -f k8s/argocd/netcup-application.yaml
+```
+
+Apply the Netcup overlay directly only when you are intentionally bypassing Argo CD:
+
+```bash
+kubectl --context=netcup apply -k k8s/overlays/netcup
+```
+
+## Netcup Verification
+
+Check Argo CD:
+
+```bash
+kubectl --context=netcup get application s8njee-web-netcup -n argocd
+kubectl --context=netcup get imageupdater s8njee-web-netcup -n argocd
+```
+
+Check Kubernetes rollout:
+
+```bash
+kubectl --context=netcup get pods,svc,pvc,sealedsecret,secret -n s8njee-web | rg 's8njee|registry'
+kubectl --context=netcup rollout status statefulset/s8njee-postgres -n s8njee-web
+kubectl --context=netcup rollout status deployment/s8njee-web -n s8njee-web
+```
+
+Check logs and HTTP:
+
+```bash
+kubectl --context=netcup logs -n s8njee-web deploy/s8njee-web --tail=200
+curl -I https://blog.s8njee.com/
+```
+
+Confirm:
+
+- `s8njee-web-netcup` is synced and healthy.
+- `s8njee-postgres-0` is ready.
+- The StatefulSet-managed PVC is still bound.
+- The deployed app pod is running an image from `registry.s8njee.com/s8njee-web`.
+- `https://blog.s8njee.com/` returns a successful response.
+
+## Netcup Safe Deploy Rule
+
+Routine app deploys should only change the app image, app code, templates, Python dependencies, config, probes, or resource limits.
+
+Do not delete or rename these during a normal deploy:
+
+- namespace `s8njee-web`
+- StatefulSet `s8njee-postgres`
+- services `s8njee-postgres` and `s8njee-postgres-headless`
+- StatefulSet volume claim template name `data`
+- live PVC created for `s8njee-postgres-0`
+- secret `s8njee-web-secrets`
+- secret keys `DB_USER`, `DB_PASSWORD`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`
+
+Those resources are the boundary between a routine app rollout and a database replacement or credential rotation.
 
 ## Startup Flow
 
-The release entrypoint is [`blog/start.sh`](/Users/sanjee/Documents/projects/s8njee-web/blog/start.sh).
+The release entrypoint is `blog/start.sh`.
 
 It is the canonical production startup path and always runs these steps in order:
 
-1. `manage.py migrate`
-2. load seed content only if the database is empty
-3. `manage.py collectstatic`
-4. start Uvicorn
+1. `manage.py migrate --noinput`
+2. load `fixtures/seed_content.json` only if the site has no posts or albums
+3. `manage.py collectstatic --noinput`
+4. start Uvicorn on port `8000`
 
-For local development, use `cd blog && uv sync && uv run python manage.py migrate && uv run python manage.py runserver`.
+The deployment is intentionally pinned to one app replica because startup currently owns migrations and seed loading.
 
-## What Not To Do
+## Secrets
 
-Do not run these as part of a normal deploy:
+Netcup uses Bitnami Sealed Secrets so encrypted secret material can live in Git.
 
-- `kubectl delete pvc s8njee-postgres-data -n default`
-- `kubectl delete -k k8s/overlays/mars`
-- `kubectl delete application s8njee-web-mars -n argocd` followed by PVC cleanup
-- changing the PVC name in `k8s/overlays/mars/postgres-pvc.yaml`
-- rotating `DB_PASSWORD`, `POSTGRES_PASSWORD`, or `POSTGRES_DB` unless you are doing a planned database credential change
+The important files are:
 
-Those actions can orphan or replace the running database.
+- `k8s/overlays/netcup/sealed-secret.yaml`
+- `k8s/overlays/netcup/registry-pull-sealed-secret.yaml`
 
-## Updating Secrets Safely
-
-If you need to change app or database secrets on `mars`:
-
-1. Start from the live cluster secret so you preserve the current DB values.
-2. Edit only the keys you intend to rotate.
-3. Reseal the secret against the `mars` cluster.
-4. Commit the updated `k8s/overlays/mars/sealed-secret.yaml`.
+To rotate app secrets safely, start from the live secret, change only the keys you intend to rotate, reseal it for the `s8njee-web` namespace, then commit the updated sealed secret.
 
 Example:
 
 ```bash
-kubectl --context=mars get secret s8njee-web-secrets -n default -o json \
+kubectl --context=netcup get secret s8njee-web-secrets -n s8njee-web -o json \
   | jq '{apiVersion:"v1",kind:"Secret",metadata:{name:.metadata.name,namespace:.metadata.namespace},type:.type,data:.data}' \
-  | kubeseal --controller-name=sealed-secrets --controller-namespace=kube-system --context mars --format yaml \
-  > k8s/overlays/mars/sealed-secret.yaml
+  | kubeseal --context=netcup --namespace=s8njee-web --format yaml \
+  > k8s/overlays/netcup/sealed-secret.yaml
 ```
 
 If you are not intentionally rotating database credentials, keep these values logically unchanged:
@@ -80,77 +155,90 @@ If you are not intentionally rotating database credentials, keep these values lo
 - `POSTGRES_PASSWORD`
 - `POSTGRES_DB`
 
-## Verifying The Database Was Preserved
-
-After Argo syncs:
-
-```bash
-kubectl --context=mars get application s8njee-web-mars -n argocd
-kubectl --context=mars get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
-kubectl --context=mars rollout status deploy/s8njee-web -n default
-kubectl --context=mars rollout status deploy/s8njee-postgres -n default
-```
-
-Confirm:
-
-- `s8njee-web-mars` is `Synced` and `Healthy`
-- `s8njee-postgres-data` is still `Bound`
-- `s8njee-postgres` is still using the same PVC
-- the site responds on `http://192.168.1.156:4201/`
-
-## Backup And Restore
+## Backups
 
 ### PostgreSQL
 
-Create a dump from the live Mars database:
+Create a dump from the live Netcup database:
 
 ```bash
-kubectl exec -n default postgres-0 -- \
-  sh -lc 'PGPASSWORD=postgres pg_dump -U postgres -d s8njee --no-owner --no-privileges' \
-  > backups/mars-postgres.sql
+kubectl --context=netcup exec -n s8njee-web s8njee-postgres-0 -- \
+  sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' \
+  > backups/netcup-postgres.sql
 ```
 
-Restore a dump into Mars:
+Restore a dump into Netcup:
 
 ```bash
-kubectl exec -i -n default postgres-0 -- \
-  sh -lc 'PGPASSWORD=postgres psql -U postgres -d s8njee' \
-  < backups/mars-postgres.sql
+kubectl --context=netcup exec -i -n s8njee-web s8njee-postgres-0 -- \
+  sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < backups/netcup-postgres.sql
 ```
 
 ### Media
 
-Media is stored in S3 in production, so bucket sync is separate from PostgreSQL backup:
+Production media is stored in S3. Uploaded album photos and blog post images are object keys in `s8njee-photoblog`, such as `photos/...` and `blog-images/...`.
+
+Back up the bucket before destructive media changes:
 
 ```bash
-aws s3 sync s3://s8njee-photoblog/media/ backups/media/
-aws s3 sync backups/media/ s3://s8njee-photoblog/media/
+aws s3 sync s3://s8njee-photoblog/ backups/s8njee-photoblog/
 ```
 
-## Smoke Checks
-
-After any deploy, verify:
+Restore from a local bucket backup:
 
 ```bash
-kubectl logs -n default deploy/s8njee-web --tail=200
-curl -I http://192.168.1.156:4201/
-kubectl exec -n default deploy/s8njee-web -- python manage.py migrate --check
+aws s3 sync backups/s8njee-photoblog/ s3://s8njee-photoblog/
 ```
 
-## If You Need To Rebuild The App But Keep The DB
+## Troubleshooting
 
-It is safe to change:
+Check which image is running:
 
-- the Django image tag
-- app template files
-- Python dependencies
-- probes, resource limits, and service settings
+```bash
+kubectl --context=netcup get deploy s8njee-web -n s8njee-web \
+  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+```
 
-It is not safe to change casually:
+Describe an unhealthy pod:
 
-- the PVC name
-- the namespace for the DB objects
-- the PostgreSQL data mount path
-- database credential values
+```bash
+kubectl --context=netcup describe pod -n s8njee-web <pod-name>
+```
 
-Treat the PVC and DB credentials as the boundary between a routine deploy and a database migration.
+Check Django startup errors:
+
+```bash
+kubectl --context=netcup logs -n s8njee-web deploy/s8njee-web --tail=300
+```
+
+Check PostgreSQL:
+
+```bash
+kubectl --context=netcup logs -n s8njee-web statefulset/s8njee-postgres --tail=200
+kubectl --context=netcup exec -n s8njee-web s8njee-postgres-0 -- \
+  sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+## Freya
+
+The `freya` overlay still exists, but it is not the public Netcup deployment.
+
+Freya uses:
+
+- Argo CD `Application`: `s8njee-web-freya`
+- namespace: `default`
+- manifests: `k8s/overlays/freya`
+- service access: `http://192.168.1.248:4201/`
+- PostgreSQL PVC: `s8njee-postgres-data`
+
+For Freya-specific deploys:
+
+```bash
+kubectl --context=freya get application s8njee-web-freya -n argocd
+kubectl --context=freya get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
+kubectl --context=freya rollout status deploy/s8njee-web -n default
+kubectl --context=freya rollout status deploy/s8njee-postgres -n default
+```
+
+Do not delete or rename `s8njee-postgres-data` unless you are intentionally replacing the Freya database.

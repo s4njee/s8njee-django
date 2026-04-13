@@ -1,6 +1,12 @@
+import io
+import shutil
+import tempfile
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from .models import Post
 
@@ -46,6 +52,30 @@ class PostEditorTests(TestCase):
             password="testpass123",
             is_staff=True,
         )
+        self.media_root = tempfile.mkdtemp()
+        self.media_override = override_settings(
+            MEDIA_ROOT=self.media_root,
+            MEDIA_URL="/media/",
+            STORAGES={
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                },
+                "staticfiles": {
+                    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+                },
+            },
+        )
+        self.media_override.enable()
+
+    def tearDown(self):
+        self.media_override.disable()
+        shutil.rmtree(self.media_root)
+
+    def make_image_upload(self, name="test-image.png", image_format="PNG", content_type="image/png"):
+        image_bytes = io.BytesIO()
+        Image.new("RGB", (16, 16), color="red").save(image_bytes, format=image_format)
+        image_bytes.seek(0)
+        return SimpleUploadedFile(name, image_bytes.read(), content_type=content_type)
 
     def test_editor_requires_login(self):
         response = self.client.get(reverse("post_editor_new"))
@@ -79,6 +109,7 @@ class PostEditorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="toast-editor"', html=False)
         self.assertContains(response, "toastui-editor-all.min.js")
+        self.assertContains(response, reverse("post_editor_image_upload"))
 
     def test_staff_can_preview_markdown(self):
         self.client.force_login(self.staff_user)
@@ -116,3 +147,52 @@ class PostEditorTests(TestCase):
         self.assertRedirects(response, f"{post.get_editor_url()}?saved=1")
         self.assertEqual(post.content, "Updated **content**")
         self.assertTrue(post.published)
+
+    def test_image_upload_requires_login(self):
+        response = self.client.post(reverse("post_editor_image_upload"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+    def test_staff_can_upload_image_for_markdown_embedding(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("post_editor_image_upload"),
+            {"image": self.make_image_upload("Header Image.png")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["url"].startswith("/media/blog-images/Header_Image-"))
+        self.assertTrue(payload["url"].endswith(".png"))
+        self.assertEqual(payload["alt"], "Header Image")
+
+    def test_staff_can_upload_avif_image_for_markdown_embedding(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("post_editor_image_upload"),
+            {
+                "image": self.make_image_upload(
+                    "wide-shot.avif",
+                    image_format="AVIF",
+                    content_type="image/avif",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["url"].startswith("/media/blog-images/wide-shot-"))
+        self.assertTrue(payload["url"].endswith(".avif"))
+        self.assertEqual(payload["alt"], "wide shot")
+
+    def test_image_upload_rejects_non_images(self):
+        self.client.force_login(self.staff_user)
+        upload = SimpleUploadedFile("notes.txt", b"not an image", content_type="text/plain")
+
+        response = self.client.post(reverse("post_editor_image_upload"), {"image": upload})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"], "The uploaded file is not a supported image.")

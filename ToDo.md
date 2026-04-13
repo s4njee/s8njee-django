@@ -75,7 +75,7 @@ A. Done on March 23, 2026. See `DEPLOYMENT_CHECKLIST.md`.
   - If the new manifest uses direct PostgreSQL bootstrap env vars, include `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in addition to the app-facing `DB_*` values.
   - Restore the newest backup, not the older local dump. The latest known backup source is `s3://s8njee-photoblog/backups/postgres/netcup/s8njee/latest.json`, which currently points to `backups/postgres/netcup/s8njee/20260401T070007Z-s8njee-daf473e99218.sql.gz`.
   - Prefer restoring with a PostgreSQL 18 client. If the restore target rejects dump header lines like `SET transaction_timeout = 0;` or psql meta-commands such as `\\restrict`, either use a matching/newer client or strip those lines before replaying the dump.
-  - Add the same kind of DB wait step used in the `mars` overlay so the Django app does not start before the dedicated database is ready.
+  - Add the same kind of DB wait step used in the `freya` overlay so the Django app does not start before the dedicated database is ready.
   - After cutover, verify:
     - `kubectl logs -n s8njee-web deploy/s8njee-web --tail=200`
     - `curl -I https://blog.s8njee.com`

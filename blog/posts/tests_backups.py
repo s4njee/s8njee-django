@@ -19,6 +19,6 @@ class PostgresBackupHelperTests(TestCase):
     def test_gzip_bytes_and_digest_are_deterministic(self):
         payload = b"select 1;\n"
 
-        self.assertEqual(normalize_backup_prefix("/backups/postgres/mars/"), "backups/postgres/mars")
+        self.assertEqual(normalize_backup_prefix("/backups/postgres/freya/"), "backups/postgres/freya")
         self.assertEqual(sha256_digest(payload), sha256_digest(payload))
         self.assertEqual(gzip_bytes(payload), gzip_bytes(payload))

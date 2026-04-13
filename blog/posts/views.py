@@ -1,15 +1,31 @@
 import json
+import uuid
+from pathlib import Path
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.decorators import method_decorator
+from django.utils.text import get_valid_filename
 from django.views import View
 from django.views.generic import ListView, DetailView, TemplateView
+from PIL import Image, UnidentifiedImageError
 
 from .forms import PostEditorForm
 from .markdown import render_markdown
 from .models import Post
+
+
+BLOG_IMAGE_UPLOAD_DIR = "blog-images"
+BLOG_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+BLOG_IMAGE_FORMAT_EXTENSIONS = {
+    "AVIF": ".avif",
+    "JPEG": ".jpg",
+    "PNG": ".png",
+    "GIF": ".gif",
+    "WEBP": ".webp",
+}
 
 
 class PostListView(ListView):
@@ -89,3 +105,37 @@ class PostEditorPreviewView(View):
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON payload."}, status=400)
         return JsonResponse({"html": render_markdown(payload.get("content", ""))})
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class PostEditorImageUploadView(View):
+    def post(self, request, *args, **kwargs):
+        uploaded_image = request.FILES.get("image")
+        if not uploaded_image:
+            return JsonResponse({"error": "Choose an image to upload."}, status=400)
+
+        if uploaded_image.size > BLOG_IMAGE_MAX_BYTES:
+            return JsonResponse({"error": "Images must be 10 MB or smaller."}, status=400)
+
+        try:
+            image = Image.open(uploaded_image)
+            image.verify()
+        except (UnidentifiedImageError, OSError):
+            return JsonResponse({"error": "The uploaded file is not a supported image."}, status=400)
+
+        extension = BLOG_IMAGE_FORMAT_EXTENSIONS.get(image.format)
+        if not extension:
+            return JsonResponse({"error": "Use an AVIF, JPEG, PNG, GIF, or WebP image."}, status=400)
+
+        uploaded_image.seek(0)
+        original_name = Path(uploaded_image.name).stem
+        safe_name = get_valid_filename(original_name) or "image"
+        filename = f"{safe_name}-{uuid.uuid4().hex[:12]}{extension}"
+        saved_path = default_storage.save(f"{BLOG_IMAGE_UPLOAD_DIR}/{filename}", uploaded_image)
+
+        return JsonResponse(
+            {
+                "url": default_storage.url(saved_path),
+                "alt": original_name.replace("-", " ").replace("_", " ").strip() or "Uploaded image",
+            }
+        )

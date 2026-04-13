@@ -66,7 +66,7 @@ Production deployment is Kubernetes-first and uses:
 - Kustomize manifests in `k8s/base` and `k8s/overlays/*`
 - Argo CD `Application` manifests in `k8s/argocd`
 - Bitnami Sealed Secrets for encrypted secret material
-- a persistent PostgreSQL PVC on `mars` named `s8njee-postgres-data`
+- a persistent PostgreSQL PVC on `freya` named `s8njee-postgres-data`
 
 ### Argo CD Access
 
@@ -88,14 +88,14 @@ If you rotate the Argo CD admin password later, keep using the same `argocd logi
 
 The app container still uses `blog/start.sh` as the release entrypoint. On startup it runs migrations, loads starter content only on an empty database, collects static files, and then starts Uvicorn.
 
-## Deploying To Mars
+## Deploying To Freya
 
-The current `mars` cluster is synced by Argo CD from [s8njee-django](https://github.com/s4njee/s8njee-django).
+The current `freya` cluster is synced by Argo CD from [s8njee-django](https://github.com/s4njee/s8njee-django).
 
 1. Build and push a new image.
-2. Update the image tag in [`k8s/overlays/mars/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/mars/kustomization.yaml).
+2. Update the image tag in [`k8s/overlays/freya/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/kustomization.yaml).
 3. Commit and push to `main`.
-4. Let Argo CD sync `s8njee-web-mars`.
+4. Let Argo CD sync `s8njee-web-freya`.
 
 Important: do not delete or rename the PostgreSQL PVC `s8njee-postgres-data` unless you are intentionally replacing the database.
 
@@ -168,9 +168,9 @@ After pushing, Argo CD reconciles the Kubernetes manifests from Git. Netcup imag
 ## Runtime Checks
 
 ```bash
-kubectl --context=mars get application s8njee-web-mars -n argocd
-kubectl --context=mars get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
-kubectl --context=mars rollout status deploy/s8njee-web -n default
+kubectl --context=freya get application s8njee-web-freya -n argocd
+kubectl --context=freya get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
+kubectl --context=freya rollout status deploy/s8njee-web -n default
 ```
 
 For basic launch observability and smoke testing:
@@ -183,4 +183,4 @@ curl -I https://argo.s8njee.com
 
 ## Deployment Checklist
 
-See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for general release checks, [DEPLOY.md](/Users/sanjee/Documents/projects/s8njee-web/DEPLOY.md) for safe `mars` deployment steps, and [k8s/README.md](/Users/sanjee/Documents/projects/s8njee-web/k8s/README.md) for manifest layout and Argo CD details.
+See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for general release checks, [DEPLOY.md](/Users/sanjee/Documents/projects/s8njee-web/DEPLOY.md) for safe `freya` deployment steps, and [k8s/README.md](/Users/sanjee/Documents/projects/s8njee-web/k8s/README.md) for manifest layout and Argo CD details.
