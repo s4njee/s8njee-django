@@ -1,6 +1,6 @@
 # Django Implementation Plan For `s8njee-web`
 
-This document turns the practices from `STUDY_GUIDE.md` into a project-specific implementation roadmap for this repository.
+This document turns the practices from [`STUDY_GUIDE.md`](STUDY_GUIDE.md) into a project-specific implementation roadmap for this repository.
 
 The goal is not just to ship features. The goal is to use this site as a serious Django training ground, where each feature teaches a real part of the framework: models, routing, forms, admin, auth, testing, deployment, performance, and background-friendly maintenance tasks.
 
@@ -57,7 +57,7 @@ Recommended work:
 
 - Add `testing.py` under `blog/blog/settings/`
 - Make test settings use fast password hashing, local memory email backend, and SQLite
-- Add a dedicated `DJANGO_SETTINGS_MODULE` section to `README.md` or `DEV.md`
+- Add a dedicated `DJANGO_SETTINGS_MODULE` section to [`../README.md`](../README.md) or [`DEV.md`](DEV.md)
 - Run `manage.py check --deploy --settings=blog.settings.production` as a documented release step
 - Consider replacing the custom env helpers with `django-environ` later, but only after you fully understand the current setup
 

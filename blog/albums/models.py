@@ -1,15 +1,16 @@
-import io
 import uuid
 
 from django.core.files.base import ContentFile
 from django.db import models
-from PIL import Image
-import pillow_heif
 
-# Register HEIF/AVIF support in Pillow (handles both .heic and .avif)
-pillow_heif.register_heif_opener()
+from .image_processing import extract_exif_summary, make_thumbnail_from_image_file
 
-THUMBNAIL_MAX_WIDTH = 400
+
+class PhotoStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    PROCESSING = "processing", "Processing"
+    READY = "ready", "Ready"
+    FAILED = "failed", "Failed"
 
 
 class Album(models.Model):
@@ -29,8 +30,17 @@ class Album(models.Model):
 class Photo(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name="photos")
-    image = models.ImageField(upload_to="photos/%Y/%m/%d/")
+    image = models.ImageField(upload_to="photos/%Y/%m/%d/", blank=True)
     thumbnail = models.ImageField(upload_to="photos/%Y/%m/%d/thumbs/", blank=True)
+    original = models.FileField(upload_to="photos/originals/%Y/%m/%d/", blank=True)
+    exif_data = models.JSONField(default=dict, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=PhotoStatus.choices,
+        default=PhotoStatus.PENDING,
+        db_index=True,
+    )
+    error = models.TextField(blank=True)
     caption = models.CharField(max_length=300, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -41,32 +51,25 @@ class Photo(models.Model):
         return self.caption or f"Photo in {self.album.title}"
 
     def save(self, *args, **kwargs):
-        # Generate thumbnail from image before saving
-        if self.image and not self.thumbnail:
-            self._make_thumbnail()
         super().save(*args, **kwargs)
 
     def _make_thumbnail(self):
-        img = Image.open(self.image)
-        img.thumbnail((THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_WIDTH * 2), Image.LANCZOS)
+        if not self.image:
+            raise ValueError("Cannot build a thumbnail without an image.")
+        thumb_name, thumb_bytes = make_thumbnail_from_image_file(self.image, str(self.id))
+        self.thumbnail.save(thumb_name, ContentFile(thumb_bytes), save=False)
 
-        # Determine output format based on stored file extension
-        name = self.image.name.lower()
-        if name.endswith(".png"):
-            fmt, ext = "PNG", ".png"
-        elif name.endswith(".webp"):
-            fmt, ext = "WEBP", ".webp"
-        elif name.endswith(".avif"):
-            fmt, ext = "AVIF", ".avif"
-        else:
-            fmt, ext = "JPEG", ".jpg"
-
-        buf = io.BytesIO()
-        save_kwargs = {"format": fmt}
-        if fmt == "JPEG":
-            save_kwargs["quality"] = 80
-        img.save(buf, **save_kwargs)
-        buf.seek(0)
-
-        thumb_name = f"thumb_{self.id}{ext}"
-        self.thumbnail.save(thumb_name, ContentFile(buf.read()), save=False)
+    def exif_display_items(self):
+        data = self.exif_data or {}
+        if not data:
+            source_file = self.original or self.image
+            if source_file:
+                try:
+                    source_file.open("rb")
+                    try:
+                        data = extract_exif_summary(source_file.read())
+                    finally:
+                        source_file.close()
+                except Exception:
+                    data = {}
+        return [{"label": label, "value": value} for label, value in data.items()]

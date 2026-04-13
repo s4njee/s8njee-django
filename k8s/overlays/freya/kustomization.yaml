@@ -4,6 +4,9 @@ namespace: default
 resources:
   - ../../base
   - configmap.yaml
+  - valkey-deployment.yaml
+  - valkey-service.yaml
+  - celery-worker-deployment.yaml
   - sealed-secret.yaml
   - postgres-pvc.yaml
   - postgres-deployment.yaml
@@ -14,4 +17,4 @@ patches:
 images:
   - name: s8njee-web
     newName: 192.168.1.248:5001/s8njee-web
-    newTag: sha-2202243f873327128352bb4dd143a78ac1c80f5b
+    newTag: 20260413-074251-amd64

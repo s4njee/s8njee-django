@@ -6,7 +6,7 @@ Assumed scope for "feature complete":
 - A personal site with a public blog and public photo gallery
 - One owner/admin, not a multi-user platform
 - Reliable deployment, safe content management, good reader experience, and basic SEO/accessibility
-- Advanced community, commerce, AI, and platform ideas are intentionally moved to `FutureResearchNeeded.md`
+- Advanced community, commerce, AI, and platform ideas are intentionally moved to [`FutureResearchNeeded.md`](FutureResearchNeeded.md)
 
 ## P0: Decide the Real Architecture
 
@@ -23,7 +23,7 @@ Assumed scope for "feature complete":
 A. I choose one Django app with blog at `/` and photos at `/photos/` (Recommended: least operational overhead on a single server, shared templates and admin)
 
 
-- [x] Align `README.md`, `docker-compose.yml`, nginx, env files, and navigation with the chosen architecture.
+- [x] Align [`../README.md`](../README.md), `docker-compose.yml`, nginx, env files, and navigation with the chosen architecture.
 
 A. Done on March 23, 2026. The repo now documents and deploys a single Django site with blog at `/` and photos at `/photos/`, and nginx is templated for one hostname instead of two separate public services.
 
@@ -55,7 +55,7 @@ A. Done on March 23, 2026. Django now reads documented env files, blank env valu
 
 - [x] Add a deployment checklist for SSL, DB credentials, media storage, migrations, static collection, and admin bootstrap.
 
-A. Done on March 23, 2026. See `DEPLOYMENT_CHECKLIST.md`.
+A. Done on March 23, 2026. See [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.md).
 
 ## P0: Make Deployment Actually Reproducible
 

@@ -10,40 +10,72 @@
 </div>
 {% if album.photos.all %}
 <div class="grid">
-  {% for photo in album.photos.all %}
-  <div class="card" style="cursor:pointer" onclick="openLightbox({{ forloop.counter0 }})">
-    <img src="{{ photo.thumbnail.url|default:photo.image.url }}" alt="{{ photo.caption }}" loading="lazy">
-    {% if photo.caption %}<div class="card-body">{{ photo.caption }}</div>{% endif %}
-  </div>
+  {% for photo in photos %}
+  {% if photo.status == "ready" and photo.image %}
+    <div class="card" style="cursor:pointer" onclick="openLightbox({{ photo.ready_index }})">
+      {% if photo.thumbnail %}
+        <img src="{{ photo.thumbnail.url }}" alt="{{ photo.caption }}" loading="lazy">
+      {% else %}
+        <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" loading="lazy">
+      {% endif %}
+      {% if photo.caption %}<div class="card-body">{{ photo.caption }}</div>{% endif %}
+    </div>
+  {% else %}
+    <div class="card" style="cursor:default">
+      <div style="width:100%;aspect-ratio:1;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#888;font-size:.85rem;text-align:center;padding:1rem">
+        <div>
+          <div style="font-weight:600;margin-bottom:.25rem">{{ photo.get_status_display }}</div>
+          {% if photo.status == "failed" and photo.error %}
+            <div style="font-size:.75rem;color:#fca5a5">{{ photo.error }}</div>
+          {% else %}
+            <div style="font-size:.75rem;color:#666">Preparing image</div>
+          {% endif %}
+        </div>
+      </div>
+      {% if photo.caption %}<div class="card-body">{{ photo.caption }}</div>{% endif %}
+    </div>
+  {% endif %}
   {% endfor %}
 </div>
 
 <!-- Lightbox -->
-<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:1000;cursor:pointer" onclick="handleLightboxClick(event)">
-  <div style="position:absolute;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:1001" onclick="closeLightbox()">&times;</div>
-  <div id="lb-caption" style="position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);color:#ccc;font-size:.9rem;text-align:center;z-index:1001"></div>
-  <div id="lb-counter" style="position:absolute;top:1rem;left:1.5rem;color:#888;font-size:.85rem;z-index:1001"></div>
-  <img id="lb-img" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:90vw;max-height:85vh;object-fit:contain" src="" alt="">
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.98);z-index:1000;cursor:pointer" onclick="handleLightboxClick(event)">
+  <div style="position:absolute;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:1002" onclick="closeLightbox()">&times;</div>
+  <div id="lightbox-shell" style="position:absolute;inset:1rem;display:grid;grid-template-columns:280px minmax(0,1fr);gap:.25rem;align-items:stretch;justify-content:center" onclick="event.stopPropagation()">
+    <aside style="width:280px;height:calc(100vh - 2rem);box-sizing:border-box;background:#000;border:1px solid #222;border-radius:0;padding:1rem;color:#ddd;overflow:hidden;display:flex;flex-direction:column;cursor:default" onclick="event.stopPropagation()">
+      <div id="lb-counter" style="color:#888;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1rem"></div>
+      <h2 style="font-size:1.15rem;margin:0 0 .75rem 0;color:#fff">EXIF</h2>
+      <div id="lb-exif-empty" style="display:none;color:#777;font-size:.9rem;line-height:1.5">No EXIF metadata found for this image.</div>
+      <dl id="lb-exif-list" style="margin:0;display:grid;grid-template-columns:1fr;gap:.5rem;flex:1;overflow:hidden"></dl>
+    </aside>
+    <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
+      <div style="position:absolute;inset:0;display:flex;z-index:1001">
+        <button type="button" aria-label="Previous photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto();"></button>
+        <button type="button" aria-label="Next photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); currentIndex = (currentIndex + 1) % photos.length; showPhoto();"></button>
+      </div>
+      <img id="lb-img" style="max-width:calc(100vw - 320px - 2.5rem);max-height:calc(100vh - 3rem);object-fit:contain;border-radius:0" src="" alt="">
+      <div id="lb-caption" style="margin-top:.75rem;color:#ccc;font-size:.95rem;text-align:center;max-width:90%"></div>
+    </section>
+  </div>
 </div>
 
+{{ ready_photo_payloads|json_script:"ready-photos-data" }}
+
 <script>
-const photos = [
-  {% for photo in album.photos.all %}
-  { url: "{{ photo.image.url }}", caption: "{{ photo.caption|escapejs }}" },
-  {% endfor %}
-];
+const photos = JSON.parse(document.getElementById('ready-photos-data').textContent || '[]');
 let currentIndex = 0;
 
 function openLightbox(i) {
   currentIndex = i;
-  showPhoto();
   document.getElementById('lightbox').style.display = 'block';
   document.body.style.overflow = 'hidden';
+  showPhoto();
 }
 
 function closeLightbox() {
   document.getElementById('lightbox').style.display = 'none';
   document.body.style.overflow = '';
+  history.replaceState(null, '', location.pathname + location.search);
 }
 
 function showPhoto() {
@@ -51,10 +83,34 @@ function showPhoto() {
   document.getElementById('lb-img').src = p.url;
   document.getElementById('lb-caption').textContent = p.caption;
   document.getElementById('lb-counter').textContent = (currentIndex + 1) + ' / ' + photos.length;
+  renderExif(p.exif || []);
+  history.replaceState(null, '', '#photo-' + currentIndex);
+}
+
+function renderExif(items) {
+  const list = document.getElementById('lb-exif-list');
+  const empty = document.getElementById('lb-exif-empty');
+  list.innerHTML = '';
+  if (!items.length) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  for (const item of items) {
+    const dt = document.createElement('div');
+    dt.style.display = 'flex';
+    dt.style.flexDirection = 'column';
+    dt.style.gap = '4px';
+    dt.innerHTML = `
+      <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1;margin:0;padding:0">${item.label}</div>
+      <div style="margin:0;padding:0;font-size:.82rem;line-height:1.05;color:#e5e7eb;word-break:break-word">${item.value}</div>
+    `;
+    list.appendChild(dt);
+  }
 }
 
 function handleLightboxClick(e) {
-  if (e.target.tagName === 'DIV' || e.target.id === 'lb-img') {
+  if (e.target.id === 'lightbox' || e.target.id === 'lightbox-shell' || e.target.id === 'lb-img') {
     const rect = document.getElementById('lightbox').getBoundingClientRect();
     const x = e.clientX - rect.left;
     if (x > rect.width / 2) {
@@ -72,6 +128,13 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowRight') { currentIndex = (currentIndex + 1) % photos.length; showPhoto(); }
   if (e.key === 'ArrowLeft') { currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto(); }
 });
+
+// Restore lightbox from URL hash on page load (e.g. after a refresh)
+const hashMatch = location.hash.match(/^#photo-(\d+)$/);
+if (hashMatch) {
+  const i = parseInt(hashMatch[1], 10);
+  if (i >= 0 && i < photos.length) openLightbox(i);
+}
 </script>
 {% else %}
 <div class="empty">No photos yet. Upload some!</div>

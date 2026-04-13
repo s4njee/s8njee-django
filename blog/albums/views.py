@@ -1,34 +1,18 @@
-import io
 import os
 
 from django.contrib.auth.decorators import login_required
-from django.core.files.base import ContentFile
+from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.generic import ListView
-from PIL import Image
-import pillow_heif
-import rawpy
 
-from .models import Album, Photo
+from PIL import Image, UnidentifiedImageError
+
+from .image_processing import RAW_EXTENSIONS
 from .forms import AlbumForm
-
-# Register HEIF/AVIF support in Pillow at module load time
-pillow_heif.register_heif_opener()
-
-RAW_EXTENSIONS = {'.nef', '.cr2', '.cr3', '.dng', '.arw', '.orf', '.raf', '.rw2'}
-
-# Cap the longest edge at this size (1920 = standard 1080p width)
-MAX_DIMENSION = 1920
-
-
-def _downscale_if_needed(img: Image.Image) -> Image.Image:
-    """Return a resized copy if either dimension exceeds MAX_DIMENSION."""
-    w, h = img.size
-    if w <= MAX_DIMENSION and h <= MAX_DIMENSION:
-        return img
-    scale = MAX_DIMENSION / max(w, h)
-    return img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+from .models import Album, Photo, PhotoStatus
+from .tasks import process_photo
 
 
 class AlbumListView(ListView):
@@ -39,7 +23,33 @@ class AlbumListView(ListView):
 
 def album_detail(request, pk):
     album = get_object_or_404(Album, pk=pk)
-    return render(request, "albums/album_detail.html", {"album": album})
+    photos = list(album.photos.all())
+    ready_photos = [photo for photo in photos if photo.status == PhotoStatus.READY and photo.image]
+    ready_index = 0
+    for photo in photos:
+        if photo.status == PhotoStatus.READY and photo.image:
+            photo.ready_index = ready_index
+            ready_index += 1
+        else:
+            photo.ready_index = None
+    ready_photo_payloads = [
+        {
+            "url": photo.image.url,
+            "caption": photo.caption,
+            "exif": photo.exif_display_items(),
+        }
+        for photo in ready_photos
+    ]
+    return render(
+        request,
+        "albums/album_detail.html",
+        {
+            "album": album,
+            "photos": photos,
+            "ready_photos": ready_photos,
+            "ready_photo_payloads": ready_photo_payloads,
+        },
+    )
 
 
 @login_required
@@ -60,9 +70,25 @@ def photo_upload(request, album_pk):
     return render(request, "albums/photo_upload.html", {"album": album})
 
 
+def _photo_status_payload(photo: Photo, album_pk):
+    payload = {
+        "id": str(photo.pk),
+        "album_id": str(album_pk),
+        "status": photo.status,
+        "poll_url": reverse("photo_status", kwargs={"album_pk": album_pk, "photo_pk": photo.pk}),
+    }
+    if photo.status == PhotoStatus.READY:
+        payload["url"] = photo.image.url
+        if photo.thumbnail:
+            payload["thumbnail_url"] = photo.thumbnail.url
+    if photo.status == PhotoStatus.FAILED and photo.error:
+        payload["error"] = photo.error
+    return payload
+
+
 @login_required
 def photo_upload_single(request, album_pk):
-    """Accept a single photo upload via XHR, converting RAW files to AVIF."""
+    """Accept a single photo upload and queue it for background processing."""
     album = get_object_or_404(Album, pk=album_pk)
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
@@ -73,59 +99,32 @@ def photo_upload_single(request, album_pk):
 
     ext = os.path.splitext(image.name)[1].lower()
 
-    if ext in RAW_EXTENSIONS:
-        file_bytes = image.read()
-
-        # 1. Try to rescue original EXIF from the RAW's TIFF-based header
-        exif_bytes = b""
+    if ext not in RAW_EXTENSIONS:
         try:
+            opened = Image.open(image)
+            opened.verify()
             image.seek(0)
-            temp_img = Image.open(image)
-            if "exif" in temp_img.info:
-                exif_bytes = temp_img.info["exif"]
-        except Exception:
-            pass
+        except (UnidentifiedImageError, OSError):
+            return JsonResponse({"error": "The uploaded file is not a supported image."}, status=400)
 
-        # 2. Demosaic raw pixel data with rawpy
-        try:
-            with rawpy.imread(io.BytesIO(file_bytes)) as raw:
-                rgb = raw.postprocess()
+    photo = Photo.objects.create(
+        album=album,
+        original=image,
+        status=PhotoStatus.PENDING,
+    )
 
-            img = Image.fromarray(rgb)
-            img = _downscale_if_needed(img)
+    def queue_photo_processing() -> None:
+        process_photo.delay(str(photo.pk))
 
-            # 3. Encode as AVIF, injecting rescued EXIF
-            out_buf = io.BytesIO()
-            save_kwargs = {"format": "AVIF", "quality": 85}
-            if exif_bytes:
-                save_kwargs["exif"] = exif_bytes
-            img.save(out_buf, **save_kwargs)
-            out_buf.seek(0)
+    transaction.on_commit(queue_photo_processing)
+    photo.refresh_from_db()
 
-            new_filename = os.path.splitext(image.name)[0] + ".avif"
-            image = ContentFile(out_buf.read(), name=new_filename)
+    status_code = 201 if photo.status == PhotoStatus.READY else 202
+    return JsonResponse(_photo_status_payload(photo, album.pk), status=status_code)
 
-        except Exception as e:
-            return JsonResponse(
-                {"error": f"Failed to process RAW file: {e}"}, status=400
-            )
 
-    # Downscale regular (non-RAW) images exceeding 1080p
-    else:
-        try:
-            orig = Image.open(image)
-            resized = _downscale_if_needed(orig)
-            if resized is not orig:  # only rewrite if we actually scaled
-                out_buf = io.BytesIO()
-                fmt = orig.format or "JPEG"
-                save_kwargs = {"format": fmt}
-                if fmt == "JPEG":
-                    save_kwargs["quality"] = 85
-                resized.save(out_buf, **save_kwargs)
-                out_buf.seek(0)
-                image = ContentFile(out_buf.read(), name=image.name)
-        except Exception:
-            pass  # If anything goes wrong, upload the original untouched
-
-    photo = Photo.objects.create(album=album, image=image)
-    return JsonResponse({"id": str(photo.pk), "url": photo.image.url}, status=201)
+@login_required
+def photo_status(request, album_pk, photo_pk):
+    album = get_object_or_404(Album, pk=album_pk)
+    photo = get_object_or_404(Photo, pk=photo_pk, album=album)
+    return JsonResponse(_photo_status_payload(photo, album.pk))

@@ -20,3 +20,13 @@ nginx/ssl/*.key
 .pytest_cache/
 .mypy_cache/
 k8s/overlays/*/secret.unsealed.yaml
+
+# Local camera/upload test files.
+*.NEF
+*.CR2
+*.ARW
+*.DNG
+*.RAF
+*.ORF
+*.RW2
+*.PEF

@@ -55,7 +55,7 @@ The site will be available at [http://127.0.0.1:8000/](http://127.0.0.1:8000/) w
 There are two supported startup paths:
 
 - Local development: `cd blog && uv sync && uv run python manage.py migrate && uv run python manage.py runserver`
-- Production: container boot runs [`blog/start.sh`](/Users/sanjee/Documents/projects/s8njee-web/blog/start.sh), which runs migrations, seeds only on an empty database, collects static files, and starts Uvicorn
+- Production: container boot runs [`blog/start.sh`](blog/start.sh), which runs migrations, seeds only on an empty database, collects static files, and starts Uvicorn
 
 There is no separate Webpack/Tailwind build step.
 
@@ -90,19 +90,22 @@ The app container still uses `blog/start.sh` as the release entrypoint. On start
 
 ## Deploying To Freya
 
-The current `freya` cluster is synced by Argo CD from [s8njee-django](https://github.com/s4njee/s8njee-django).
+The `freya` cluster is the secondary/dev deployment. It is optimized for quick iteration with source sync instead of rebuilding the image for every Django/template/static edit.
 
-1. Build and push a new image.
-2. Update the image tag in [`k8s/overlays/freya/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/kustomization.yaml).
-3. Commit and push to `main`.
-4. Let Argo CD sync `s8njee-web-freya`.
+For normal app changes:
 
-Important: do not delete or rename the PostgreSQL PVC `s8njee-postgres-data` unless you are intentionally replacing the database.
+```bash
+scripts/freya-sync.sh
+```
+
+Freya still uses a base image from `192.168.1.248:5001`, but image rebuilds are only needed for dependency/runtime changes such as `blog/Dockerfile`, `blog/pyproject.toml`, or `blog/uv.lock`.
+
+Important: do not delete or rename the PostgreSQL PVC `s8njee-postgres-data-freya` unless you are intentionally replacing the Freya database.
 
 Detailed deployment guidance lives in:
 
-- [DEPLOY.md](/Users/sanjee/Documents/projects/s8njee-web/DEPLOY.md)
-- [k8s/README.md](/Users/sanjee/Documents/projects/s8njee-web/k8s/README.md)
+- [DEPLOY.md](DEPLOY.md)
+- [k8s/README.md](k8s/README.md)
 
 ## Storage Modes
 
@@ -183,4 +186,4 @@ curl -I https://argo.s8njee.com
 
 ## Deployment Checklist
 
-See [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for general release checks, [DEPLOY.md](/Users/sanjee/Documents/projects/s8njee-web/DEPLOY.md) for safe `freya` deployment steps, and [k8s/README.md](/Users/sanjee/Documents/projects/s8njee-web/k8s/README.md) for manifest layout and Argo CD details.
+See [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) for general release checks, [DEPLOY.md](DEPLOY.md) for deployment steps, and [k8s/README.md](k8s/README.md) for manifest layout and Argo CD details.

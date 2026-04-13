@@ -154,7 +154,7 @@ These ideas are intentionally outside the core "functional personal blog/photo s
 
 ## When To Revisit This File
 
-Move items from this file into `ToDo.md` only after:
+Move items from this file into [`ToDo.md`](ToDo.md) only after:
 - the deployment path is stable
 - secrets and repo hygiene are fixed
 - blog and album workflows are complete

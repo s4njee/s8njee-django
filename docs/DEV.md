@@ -4,7 +4,7 @@ This document describes the current architecture of `s8njee-web` and the deploym
 
 ## Architecture
 
-The active application is a single Django project in [`blog/`](/Users/sanjee/Documents/projects/s8njee-web/blog).
+The active application is a single Django project in [`../blog/`](../blog).
 
 - Blog routes live at `/`
 - Photo gallery routes live at `/photos/`
@@ -14,11 +14,11 @@ The active application is a single Django project in [`blog/`](/Users/sanjee/Doc
 - static files are collected into `staticfiles/`
 - uploaded media is expected to live in S3 in production
 
-The app startup path is [`blog/start.sh`](/Users/sanjee/Documents/projects/s8njee-web/blog/start.sh). On container boot it:
+The app startup path is [`../blog/start.sh`](../blog/start.sh). On container boot it:
 
 1. runs `manage.py migrate`
 2. checks whether posts or albums already exist
-3. loads [`blog/fixtures/seed_content.json`](/Users/sanjee/Documents/projects/s8njee-web/blog/fixtures/seed_content.json) on an empty database
+3. loads [`../blog/fixtures/seed_content.json`](../blog/fixtures/seed_content.json) on an empty database
 4. runs `manage.py collectstatic`
 5. starts Uvicorn on port `8000`
 
@@ -41,10 +41,10 @@ That fixture is app content only. It does not include the binary media objects i
 
 ## Repo Layout
 
-- [`blog/`](/Users/sanjee/Documents/projects/s8njee-web/blog): active Django application
-- [`k8s/`](/Users/sanjee/Documents/projects/s8njee-web/k8s): Kubernetes manifests
-- [`backups/`](/Users/sanjee/Documents/projects/s8njee-web/backups): pulled database dumps
-- [`archive/photos-standalone-app/`](/Users/sanjee/Documents/projects/s8njee-web/archive/photos-standalone-app): retired standalone photo service
+- [`../blog/`](../blog): active Django application
+- [`../k8s/`](../k8s): Kubernetes manifests
+- [`../backups/`](../backups): pulled database dumps
+- [`../archive/photos-standalone-app/`](../archive/photos-standalone-app): retired standalone photo service
 
 ## Local Development
 
@@ -74,7 +74,7 @@ The app will be available at:
 
 ## Container Build
 
-The container build context is [`./blog`](/Users/sanjee/Documents/projects/s8njee-web/blog), using [`blog/Dockerfile`](/Users/sanjee/Documents/projects/s8njee-web/blog/Dockerfile).
+The container build context is [`../blog`](../blog), using [`../blog/Dockerfile`](../blog/Dockerfile).
 
 General build:
 
@@ -107,11 +107,11 @@ docker buildx imagetools inspect 192.168.1.248:5001/s8njee-web:<tag>
 
 ## Kubernetes
 
-Base manifests live in [`k8s/base/`](/Users/sanjee/Documents/projects/s8njee-web/k8s/base). Environment-specific configuration lives in overlays.
+Base manifests live in [`../k8s/base/`](../k8s/base). Environment-specific configuration lives in overlays.
 
 ### Freya
 
-The main active Kubernetes deployment path is [`k8s/overlays/freya/`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya).
+The main active Kubernetes deployment path is [`../k8s/overlays/freya/`](../k8s/overlays/freya).
 
 What it deploys:
 
@@ -132,13 +132,13 @@ Current Freya assumptions:
 
 Important manifest files:
 
-- [`k8s/overlays/freya/kustomization.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/kustomization.yaml)
-- [`k8s/overlays/freya/configmap.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/configmap.yaml)
+- [`../k8s/overlays/freya/kustomization.yaml`](../k8s/overlays/freya/kustomization.yaml)
+- [`../k8s/overlays/freya/configmap.yaml`](../k8s/overlays/freya/configmap.yaml)
 - `k8s/overlays/freya/secret.env` (local only, ignored by git)
-- [`k8s/overlays/freya/secret.env.example`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/secret.env.example)
-- [`k8s/overlays/freya/postgres-deployment.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/postgres-deployment.yaml)
-- [`k8s/overlays/freya/service-patch.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/service-patch.yaml)
-- [`k8s/overlays/freya/deployment-patch.yaml`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/freya/deployment-patch.yaml)
+- [`../k8s/overlays/freya/secret.env.example`](../k8s/overlays/freya/secret.env.example)
+- [`../k8s/overlays/freya/postgres-deployment.yaml`](../k8s/overlays/freya/postgres-deployment.yaml)
+- [`../k8s/overlays/freya/service-patch.yaml`](../k8s/overlays/freya/service-patch.yaml)
+- [`../k8s/overlays/freya/deployment-patch.yaml`](../k8s/overlays/freya/deployment-patch.yaml)
 
 Render manifests:
 
@@ -170,7 +170,7 @@ curl -I http://192.168.1.248:4201/
 
 ### Netcup
 
-The Netcup overlay is [`k8s/overlays/netcup/`](/Users/sanjee/Documents/projects/s8njee-web/k8s/overlays/netcup).
+The Netcup overlay is [`../k8s/overlays/netcup/`](../k8s/overlays/netcup).
 
 That path assumes:
 

@@ -15,4 +15,6 @@ class AlbumAdmin(admin.ModelAdmin):
 
 @admin.register(Photo)
 class PhotoAdmin(admin.ModelAdmin):
-    list_display = ["__str__", "album", "uploaded_at"]
+    list_display = ["__str__", "album", "status", "uploaded_at"]
+    list_filter = ["status", "uploaded_at"]
+    search_fields = ["caption", "album__title", "error"]

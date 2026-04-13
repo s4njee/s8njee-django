@@ -229,26 +229,32 @@ Freya uses:
 - namespace: `default`
 - manifests: `k8s/overlays/freya`
 - service access: `http://192.168.1.248:4201/`
-- app image registry: `192.168.1.248:5001`
+- app image registry for the base runtime image: `192.168.1.248:5001`
 - app image pull secret: `regcred`
+- dev source path on the Freya host: `/home/sanjee/tmp/s8njee-web/blog`
 - PostgreSQL image: `postgres:18.3-alpine3.23`
 - PostgreSQL PVC: `s8njee-postgres-data-freya`
 - PostgreSQL placement: pinned to node `freya`
+- Celery broker: `valkey` in the same namespace
+- Celery worker: `s8njee-celery-worker`
 
-Freya does have Argo CD installed, but the active app list currently does not include `s8njee-web-freya`. Treat Freya deploys as manual `kubectl apply -k k8s/overlays/freya` unless an Argo application is recreated intentionally.
+Freya does have Argo CD installed, but the active app list currently does not include `s8njee-web-freya`. Treat Freya as a manual dev deployment unless an Argo application is recreated intentionally.
 
-For Freya-specific deploys:
+For Freya-specific health checks:
 
 ```bash
 kubectl --context=freya get deploy,pods,svc,pvc,sealedsecret,secret -n default | rg 's8njee'
 kubectl --context=freya rollout status deploy/s8njee-web -n default
 kubectl --context=freya rollout status deploy/s8njee-postgres -n default
+kubectl --context=freya rollout status deploy/s8njee-celery-worker -n default
 curl -I http://192.168.1.248:4201/
 ```
 
 ### Freya Fast Dev Sync
 
-Freya is optimized for fast Django/template iteration. The pod still runs from the normal app image, but the overlay mounts these synced host directories from the Freya node:
+Freya's default app iteration strategy is source sync, not image rebuilds.
+
+The pod still starts from a normal app image so it has Python, `uv`, PostgreSQL client tools, and installed dependencies. The Freya overlay then mounts selected source directories from the Freya node with `hostPath`:
 
 - `/home/sanjee/tmp/s8njee-web/blog/blog`
 - `/home/sanjee/tmp/s8njee-web/blog/posts`
@@ -263,7 +269,9 @@ For normal Python, template, CSS, JS, migration, and fixture edits, sync the sou
 scripts/freya-sync.sh
 ```
 
-The Freya web container runs Uvicorn with `--reload`, so most source edits restart automatically after the sync. If the app does not reload, restart only the web deployment:
+The Freya web container runs Uvicorn with `--reload`, so most source edits restart automatically after the sync. No image build, image push, kustomization tag edit, or `kubectl apply` is needed for ordinary code/template changes.
+
+If the app does not reload, restart only the web deployment:
 
 ```bash
 kubectl --context=freya rollout restart deploy/s8njee-web -n default
@@ -272,7 +280,17 @@ kubectl --context=freya rollout status deploy/s8njee-web -n default
 
 The mounted source directories intentionally do not replace all of `/app`; the image still owns the virtual environment, installed Python dependencies, system packages, `manage.py`, `pyproject.toml`, and `uv.lock`.
 
-Rebuild and push a Freya image only when changing dependencies or image/runtime behavior, such as:
+Freya also runs a local Valkey broker and a Celery worker so queued photo uploads can finish in the background. That means uploads no longer block the web request while RAW files are demosaiced, downscaled, and re-encoded.
+
+When changing Freya manifests, apply the overlay:
+
+```bash
+kubectl --context=freya apply -k k8s/overlays/freya
+kubectl --context=freya rollout status deploy/s8njee-web -n default
+kubectl --context=freya rollout status deploy/s8njee-celery-worker -n default
+```
+
+Rebuild and push a Freya image only when changing dependencies, base runtime behavior, or files that are not mounted from the Freya host, such as:
 
 - `blog/Dockerfile`
 - `blog/pyproject.toml`
@@ -281,9 +299,16 @@ Rebuild and push a Freya image only when changing dependencies or image/runtime 
 - entrypoint/startup behavior
 - files outside the mounted source directories
 
+The quick decision rule is:
+
+- Django code/templates/static/fixtures changed: run `scripts/freya-sync.sh`.
+- Freya Kubernetes manifests changed: run `kubectl --context=freya apply -k k8s/overlays/freya`.
+- Dependencies or image runtime changed: rebuild and push the Freya image, update `k8s/overlays/freya/kustomization.yaml`, then apply the overlay.
+- Photo uploads now queue through Celery on Freya. If the queue seems stuck, check `deploy/s8njee-celery-worker` and `svc/valkey` first.
+
 ### Freya Image Build And Registry
 
-Freya pulls from a LAN HTTP registry on `192.168.1.248:5001`. Because the registry is HTTP, both Docker and k3s/containerd on `freya` must be configured to allow the registry as insecure.
+Freya still needs a base app image. It pulls that image from a LAN HTTP registry on `192.168.1.248:5001`. Because the registry is HTTP, both Docker and k3s/containerd on `freya` must be configured to allow the registry as insecure.
 
 The k3s registry file on `freya` should include:
 
@@ -313,7 +338,7 @@ kubectl --context=freya create secret docker-registry regcred \
   | kubectl --context=freya apply -f -
 ```
 
-If local Docker cannot reach `ssh://freya.local`, sync the working tree to Freya and build from there:
+If local Docker cannot reach `ssh://freya.local`, sync the full working tree to Freya and build from there. This is only needed for base image rebuilds, not normal dev edits:
 
 ```bash
 rsync -az --delete --exclude .git --exclude .idea ./ freya.local:/home/sanjee/tmp/s8njee-web/

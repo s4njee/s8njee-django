@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s8njee-celery-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s8njee-celery-worker
+  template:
+    metadata:
+      labels:
+        app: s8njee-celery-worker
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      nodeSelector:
+        kubernetes.io/hostname: freya
+      volumes:
+        - name: app-blog
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/blog
+            type: Directory
+        - name: app-posts
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/posts
+            type: Directory
+        - name: app-albums
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/albums
+            type: Directory
+        - name: app-templates
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/templates
+            type: Directory
+        - name: app-static
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/static
+            type: Directory
+        - name: app-fixtures
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/fixtures
+            type: Directory
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.3-alpine3.23
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: s8njee-web-config
+            - secretRef:
+                name: s8njee-web-secrets
+          command:
+            - sh
+            - -c
+            - |
+              DB_HOST="${S8NJEE_POSTGRES_SERVICE_HOST:-${DB_HOST:-}}"
+              DB_PORT="${S8NJEE_POSTGRES_SERVICE_PORT:-${DB_PORT:-5432}}"
+              until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"; do sleep 2; done
+      containers:
+        - name: worker
+          image: s8njee-web:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: s8njee-web-config
+            - secretRef:
+                name: s8njee-web-secrets
+          volumeMounts:
+            - name: app-blog
+              mountPath: /app/blog
+            - name: app-posts
+              mountPath: /app/posts
+            - name: app-albums
+              mountPath: /app/albums
+            - name: app-templates
+              mountPath: /app/templates
+            - name: app-static
+              mountPath: /app/static
+            - name: app-fixtures
+              mountPath: /app/fixtures
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export DJANGO_SETTINGS_MODULE=blog.settings.production
+              DB_HOST="${S8NJEE_POSTGRES_SERVICE_HOST:-${DB_HOST:-}}"
+              DB_PORT="${S8NJEE_POSTGRES_SERVICE_PORT:-${DB_PORT:-5432}}"
+              export DB_HOST DB_PORT
+              exec uv run celery -A blog worker --loglevel=info --concurrency=1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

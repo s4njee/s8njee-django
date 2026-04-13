@@ -50,13 +50,23 @@ function addFiles(fileList) {
   for (const f of fileList) {
     if (!isAcceptedFile(f)) continue;
     const id = randomUUID();
-    queue.push({ id, file: f, status: "pending" });
-    renderItem(id, f, RAW_EXTENSIONS.has(f.name.split('.').pop().toLowerCase()));
+    queue.push({
+      id,
+      file: f,
+      status: "pending",
+      retries: 0,
+      serverId: null,
+      pollUrl: null,
+      error: null,
+    });
+    renderItem(queue[queue.length - 1], RAW_EXTENSIONS.has(f.name.split('.').pop().toLowerCase()));
   }
   updateControls();
+  refreshDoneState();
 }
 
-function renderItem(id, file, isRaw = false) {
+function renderItem(item, isRaw = false) {
+  const { id, file } = item;
   const el = document.createElement("div");
   el.id = "item-" + id;
   el.style.cssText = "display:flex;align-items:center;gap:1rem;padding:.5rem 0;border-bottom:1px solid #222";
@@ -73,19 +83,29 @@ function renderItem(id, file, isRaw = false) {
         <div class="progress-fill" style="height:100%;width:0%;background:#2563eb;transition:width .2s"></div>
       </div>
     </div>
-    <span class="status" style="font-size:.8rem;color:#888">Pending</span>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem">
+      <span class="status" style="font-size:.8rem;color:#888">Pending</span>
+      <button class="retry-btn" type="button" style="display:none;background:#333;color:#fff;border:none;padding:.35rem .6rem;border-radius:4px;cursor:pointer">Retry</button>
+    </div>
   `;
   document.getElementById("queue").appendChild(el);
+  el.querySelector(".retry-btn").addEventListener("click", () => retryUpload(id));
 }
 
 function updateControls() {
   const pending = queue.filter(q => q.status === "pending").length;
   const ctrl = document.getElementById("controls");
-  ctrl.style.display = pending > 0 && !uploading ? "flex" : pending > 0 ? "flex" : "none";
+  ctrl.style.display = pending > 0 || queue.some(q => q.status === "error") ? "flex" : "none";
   document.getElementById("file-count").textContent = queue.filter(q => q.status === "pending" || q.status === "uploading").length;
 }
 
+function refreshDoneState() {
+  const allDone = queue.length > 0 && queue.every(q => q.status === "done");
+  document.getElementById("done-msg").style.display = allDone ? "block" : "none";
+}
+
 async function startUpload() {
+  if (uploading) return;
   uploading = true;
   document.getElementById("start-btn").disabled = true;
   document.getElementById("start-btn").style.opacity = "0.5";
@@ -96,36 +116,17 @@ async function startUpload() {
 
   for (const item of queue) {
     if (item.status !== "pending") continue;
-    item.status = "uploading";
-    const el = document.getElementById("item-" + item.id);
-    const statusEl = el.querySelector(".status");
-    const fillEl = el.querySelector(".progress-fill");
-    statusEl.textContent = "Uploading…";
-    statusEl.style.color = "#2563eb";
-
-    try {
-      await uploadFile(item.file, (pct) => {
-        fillEl.style.width = pct + "%";
-      });
-      item.status = "done";
-      fillEl.style.width = "100%";
-      fillEl.style.background = "#4ade80";
-      statusEl.textContent = "✓";
-      statusEl.style.color = "#4ade80";
-    } catch (err) {
-      item.status = "error";
-      fillEl.style.background = "#ef4444";
-      statusEl.textContent = "Failed";
-      statusEl.style.color = "#ef4444";
-    }
+    await uploadOne(item);
 
     done++;
     document.getElementById("progress-text").textContent = done + " / " + total + " complete";
   }
 
   uploading = false;
-  document.getElementById("done-msg").style.display = "block";
-  document.getElementById("controls").style.display = "none";
+  document.getElementById("start-btn").disabled = false;
+  document.getElementById("start-btn").style.opacity = "1";
+  updateControls();
+  refreshDoneState();
 }
 
 function uploadFile(file, onProgress) {
@@ -137,7 +138,19 @@ function uploadFile(file, onProgress) {
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100));
     };
-    xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(xhr.status));
+    xhr.onload = () => {
+      let payload = {};
+      try {
+        payload = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch (err) {
+        payload = {};
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload);
+        return;
+      }
+      reject(new Error(payload.error || xhr.statusText || `HTTP ${xhr.status}`));
+    };
     xhr.onerror = () => reject(new Error("Network error"));
 
     const fd = new FormData();
@@ -146,10 +159,122 @@ function uploadFile(file, onProgress) {
   });
 }
 
+function setItemStatus(item, statusText, color, fillColor) {
+  const el = document.getElementById("item-" + item.id);
+  const statusEl = el.querySelector(".status");
+  const fillEl = el.querySelector(".progress-fill");
+  const retryBtn = el.querySelector(".retry-btn");
+  statusEl.textContent = statusText;
+  statusEl.style.color = color;
+  fillEl.style.background = fillColor || fillEl.style.background;
+  retryBtn.style.display = "none";
+}
+
+function showRetry(item, message) {
+  item.status = "error";
+  item.error = message;
+  const el = document.getElementById("item-" + item.id);
+  const statusEl = el.querySelector(".status");
+  const fillEl = el.querySelector(".progress-fill");
+  const retryBtn = el.querySelector(".retry-btn");
+  statusEl.textContent = message || "Failed";
+  statusEl.style.color = "#ef4444";
+  fillEl.style.background = "#ef4444";
+  retryBtn.style.display = "inline-flex";
+  updateControls();
+  refreshDoneState();
+}
+
+function markDone(item, payload) {
+  item.status = "done";
+  item.error = null;
+  item.serverId = payload.id;
+  const el = document.getElementById("item-" + item.id);
+  const statusEl = el.querySelector(".status");
+  const fillEl = el.querySelector(".progress-fill");
+  const retryBtn = el.querySelector(".retry-btn");
+  fillEl.style.width = "100%";
+  fillEl.style.background = "#4ade80";
+  statusEl.textContent = "✓";
+  statusEl.style.color = "#4ade80";
+  retryBtn.style.display = "none";
+  updateControls();
+  refreshDoneState();
+}
+
+function pollStatus(item, pollUrl) {
+  const tick = async () => {
+    try {
+      const response = await fetch(pollUrl, { headers: { "X-CSRFToken": CSRF } });
+      const payload = await response.json();
+      if (payload.status === "ready") {
+        markDone(item, payload);
+        return;
+      }
+      if (payload.status === "failed") {
+        showRetry(item, payload.error || "Failed to process image");
+        return;
+      }
+      setItemStatus(item, "Processing…", "#f59e0b");
+      window.setTimeout(tick, 1500);
+    } catch (err) {
+      showRetry(item, err.message || "Status check failed");
+    }
+  };
+  window.setTimeout(tick, 1500);
+}
+
+async function uploadOne(item) {
+  item.status = "uploading";
+  const el = document.getElementById("item-" + item.id);
+  const statusEl = el.querySelector(".status");
+  const fillEl = el.querySelector(".progress-fill");
+  const retryBtn = el.querySelector(".retry-btn");
+  retryBtn.style.display = "none";
+  statusEl.textContent = "Uploading…";
+  statusEl.style.color = "#2563eb";
+
+  try {
+    const payload = await uploadFile(item.file, (pct) => {
+      fillEl.style.width = pct + "%";
+    });
+
+    item.serverId = payload.id;
+    item.pollUrl = payload.poll_url;
+
+    if (payload.status === "ready" || payload.url) {
+      markDone(item, payload);
+    } else {
+      setItemStatus(item, "Processing…", "#f59e0b");
+      pollStatus(item, payload.poll_url);
+    }
+  } catch (err) {
+    showRetry(item, err.message || "Upload failed");
+  }
+}
+
+function retryUpload(id) {
+  const item = queue.find(q => q.id === id);
+  if (!item || uploading) return;
+  item.status = "pending";
+  item.error = null;
+  const el = document.getElementById("item-" + item.id);
+  const fillEl = el.querySelector(".progress-fill");
+  fillEl.style.width = "0%";
+  fillEl.style.background = "#2563eb";
+  const statusEl = el.querySelector(".status");
+  statusEl.textContent = "Pending";
+  statusEl.style.color = "#888";
+  updateControls();
+  refreshDoneState();
+  uploadOne(item);
+}
+
 function clearQueue() {
   queue = queue.filter(q => q.status === "done");
   document.getElementById("queue").innerHTML = "";
   updateControls();
+  refreshDoneState();
 }
 </script>
 {% endblock %}

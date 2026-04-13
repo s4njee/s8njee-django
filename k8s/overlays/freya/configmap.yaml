@@ -16,3 +16,4 @@ data:
   DB_BACKUP_EXCLUDED_TABLES: "django_session"
   AWS_STORAGE_BUCKET_NAME: "s8njee-photoblog"
   AWS_S3_REGION_NAME: "us-east-1"
+  CELERY_BROKER_URL: "redis://valkey:6379/0"
