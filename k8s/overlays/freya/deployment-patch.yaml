@@ -9,6 +9,33 @@ spec:
         - name: regcred
       nodeSelector:
         kubernetes.io/hostname: freya
+      # Freya is a dev deployment: mount synced source directories from the
+      # node while keeping the image-owned virtualenv and system dependencies.
+      volumes:
+        - name: app-blog
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/blog
+            type: Directory
+        - name: app-posts
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/posts
+            type: Directory
+        - name: app-albums
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/albums
+            type: Directory
+        - name: app-templates
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/templates
+            type: Directory
+        - name: app-static
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/static
+            type: Directory
+        - name: app-fixtures
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/fixtures
+            type: Directory
       initContainers:
         - name: wait-for-postgres
           image: postgres:18.3-alpine3.23
@@ -27,6 +54,37 @@ spec:
               until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"; do sleep 2; done
       containers:
         - name: web
+          volumeMounts:
+            - name: app-blog
+              mountPath: /app/blog
+            - name: app-posts
+              mountPath: /app/posts
+            - name: app-albums
+              mountPath: /app/albums
+            - name: app-templates
+              mountPath: /app/templates
+            - name: app-static
+              mountPath: /app/static
+            - name: app-fixtures
+              mountPath: /app/fixtures
+          # Override the default command to add --reload for auto-reloading on file changes.
+          # Migrations and collectstatic still run via start.sh before uvicorn.
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export DJANGO_SETTINGS_MODULE=blog.settings.production
+              DB_HOST="${S8NJEE_POSTGRES_SERVICE_HOST:-${DB_HOST:-}}"
+              DB_PORT="${S8NJEE_POSTGRES_SERVICE_PORT:-${DB_PORT:-5432}}"
+              export DB_HOST DB_PORT
+              uv run python manage.py migrate --noinput
+              if uv run python manage.py shell -c "from posts.models import Post; from albums.models import Album; raise SystemExit(0 if Post.objects.exists() or Album.objects.exists() else 1)"; then
+                :
+              else
+                uv run python manage.py loaddata fixtures/seed_content.json
+              fi
+              uv run python manage.py collectstatic --noinput
+              exec uv run uvicorn blog.asgi:application --host 0.0.0.0 --port 8000 --workers 1 --reload --lifespan off
           readinessProbe:
             $patch: replace
             tcpSocket:
