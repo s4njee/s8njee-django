@@ -46,7 +46,7 @@
       <div id="lb-counter" style="color:#888;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1rem"></div>
       <h2 style="font-size:1.15rem;margin:0 0 .75rem 0;color:#fff">EXIF</h2>
       <div id="lb-exif-empty" style="display:none;color:#777;font-size:.9rem;line-height:1.5">No EXIF metadata found for this image.</div>
-      <dl id="lb-exif-list" style="margin:0;display:grid;grid-template-columns:1fr;gap:.5rem;flex:1;overflow:hidden"></dl>
+      <dl id="lb-exif-list" style="margin:0;display:flex;flex-direction:column;gap:30px;flex:0 1 auto;overflow:auto"></dl>
     </aside>
     <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
       <div style="position:absolute;inset:0;display:flex;z-index:1001">
@@ -100,10 +100,11 @@ function renderExif(items) {
     const dt = document.createElement('div');
     dt.style.display = 'flex';
     dt.style.flexDirection = 'column';
-    dt.style.gap = '4px';
+    dt.style.gap = '2px';
+    dt.style.flex = '0 0 auto';
     dt.innerHTML = `
-      <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1;margin:0;padding:0">${item.label}</div>
-      <div style="margin:0;padding:0;font-size:.82rem;line-height:1.05;color:#e5e7eb;word-break:break-word">${item.value}</div>
+      <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1.05;margin:0;padding:0">${item.label}</div>
+      <div style="margin:0;padding:0;font-size:.82rem;line-height:1.1;color:#e5e7eb;word-break:break-word">${item.value}</div>
     `;
     list.appendChild(dt);
   }

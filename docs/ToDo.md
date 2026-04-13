@@ -213,6 +213,43 @@ A. Done on March 23, 2026. See [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.
 
 - [ ] Add lazy-loading and pagination or progressive loading where album size could become large.
 
+## P2: Photo Gallery — Professional Polish
+
+These items were identified in an April 2026 review of the photo side of the site against professional photography portfolio standards.
+
+- [ ] Preserve original files after processing (or make it opt-in).
+  Currently the original RAW/HEIC is deleted once the AVIF is generated. There is no way to retrieve the source file later. At minimum, add a `keep_original` flag or an admin action to download the processed image.
+
+- [ ] Enable parallel uploads.
+  The upload queue processes one file at a time. For albums of 20+ photos this is noticeably slow. Upload all files concurrently and show per-file progress individually.
+
+- [ ] Add upload cancellation.
+  Once a file starts uploading there is no way to abort it. Standard for any file upload UI.
+
+- [ ] Make the EXIF sidebar collapsible.
+  The 280px fixed panel is always visible even when there is no EXIF data. It should be togglable, and on mobile it must collapse below the image rather than sitting beside it.
+
+- [ ] Preload adjacent images in the lightbox.
+  Navigating to the next or previous photo fetches it synchronously. Prefetch the immediate neighbours while the current photo is open.
+
+- [ ] Fix the GPS "Available" indicator.
+  Showing "GPS: Available" with no coordinates or map looks like an unfinished placeholder. Either display the coordinates (and optionally a small map embed), or omit the field entirely when the data is not surfaced.
+
+- [ ] Expand EXIF display fields and fix formatting.
+  Only ~12 fields are shown. Professional sites (Flickr, 500px) also surface white balance, metering mode, flash, color space, and lens ID. Also align formatting with photography conventions: `50mm` not `50 mm`, `1/250s` not `1/250 s`, `f/2.8` is correct and can stay.
+
+- [ ] Add image variants with responsive `srcset`.
+  All images are served at 1920px max regardless of the viewer's screen. Generate small (800px), medium (1200px), and full (1920px) variants at upload time and use `srcset` so mobile users don't download full-resolution files.
+
+- [ ] Add watermark support.
+  Standard for photographers sharing work publicly. Implement a configurable overlay (text or logo) applied during image processing, with a flag to enable/disable per album.
+
+- [ ] Add tagging and cross-album collections.
+  Albums are the only organisational unit. Add tags to photos so content can be browsed across albums (e.g. "portraits", "landscape"), and optionally curate highlight collections independent of upload albums.
+
+- [ ] Show photo count on the album list page.
+  Users cannot tell how large an album is without opening it.
+
 ## P2: Content Management Workflow
 
 - [ ] Decide whether Django admin is the primary authoring interface or whether the site should expose first-party edit screens.
