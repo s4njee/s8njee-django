@@ -102,8 +102,19 @@ def _extract_exiftool_summary(file_bytes: bytes) -> dict[str, str]:
             continue
         summary[label] = _format_exif_value(tag_name, value)
 
-    if payload.get("GPSVersionID") or payload.get("GPSLatitude") or payload.get("GPSLongitude"):
-        summary["GPS"] = "Available"
+    lat = payload.get("GPSLatitude")
+    lon = payload.get("GPSLongitude")
+    if lat is not None and lon is not None:
+        try:
+            lat_f = float(lat)
+            lon_f = float(lon)
+            # -n gives decimal degrees already
+            lat_ref = "N" if lat_f >= 0 else "S"
+            lon_ref = "E" if lon_f >= 0 else "W"
+            summary["GPS"] = f"{abs(lat_f):.4f}° {lat_ref}, {abs(lon_f):.4f}° {lon_ref}"
+        except (ValueError, TypeError):
+            pass
+
     return summary
 
 
@@ -211,7 +222,26 @@ def extract_exif_summary(file_bytes: bytes) -> dict[str, str]:
 
     gps_info = exif.get(34853)
     if gps_info:
-        summary["GPS"] = "Available"
+        try:
+            # Pillow GPS tags are usually tuples of rationals
+            def get_decimal(values, ref):
+                # degrees, minutes, seconds
+                d = float(values[0])
+                m = float(values[1])
+                s = float(values[2])
+                dec = d + (m / 60.0) + (s / 3600.0)
+                if ref in ['S', 'W']:
+                    dec = -dec
+                return dec
+
+            lat = get_decimal(gps_info[2], gps_info[1])
+            lon = get_decimal(gps_info[4], gps_info[3])
+            lat_ref = "N" if lat >= 0 else "S"
+            lon_ref = "E" if lon >= 0 else "W"
+            summary["GPS"] = f"{abs(lat):.4f}° {lat_ref}, {abs(lon):.4f}° {lon_ref}"
+        except Exception:
+            pass
+
     return summary
 
 
