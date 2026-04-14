@@ -64,6 +64,16 @@ Assumed scope for "feature complete":
 
   A. Done.
 
+### Blog
+
+- [x] Add a richer post authoring format.
+
+  A. Done April 2026. Markdown with `python-markdown` + `nh3` sanitizer. Toast UI editor with live preview panel in the staff editor (`/editor/posts/`). Toolbar includes image upload to `blog-images/` in the storage backend.
+
+- [x] Separate `published_at` from `created_at`.
+
+  A. Done April 2026. `Post` has `published_at` set on first publish; `created_at` and `updated_at` are auto-managed. Editor shows a **Publish this post to the public site** toggle; drafts are invisible to the public.
+
 ### Photo Gallery
 
 - [x] Add async photo processing pipeline with status polling.
@@ -80,7 +90,7 @@ Assumed scope for "feature complete":
 
 - [x] Add per-photo metadata that can be edited cleanly.
 
-  A. Done April 2026. Caption editable via `photo_edit`. Sort order managed via drag-and-drop, persisted via `photo_reorder` API (migration 0005). Note: dedicated alt text field not yet added; lightbox derives alt from caption.
+  A. Done April 2026. Caption and `alt_text` editable via `photo_edit`. Sort order managed via drag-and-drop, persisted via `photo_reorder` API (migration 0005).
 
 - [x] Make the lightbox fully keyboard- and touch-friendly.
 
@@ -108,7 +118,73 @@ Assumed scope for "feature complete":
 
 - [x] Make the EXIF sidebar usable on mobile.
 
-  A. Done April 2026. `@media (max-width: 640px)` stacks the sidebar below the image. Desktop collapsibility (toggle button) is a separate open item.
+  A. Done April 2026. `@media (max-width: 640px)` stacks the sidebar below the image.
+
+- [x] Add EXIF sidebar desktop toggle.
+
+  A. Done April 2026. `◀ EXIF` / `EXIF ▶` button positioned top-left of the lightbox (mirrors the close button at top-right). Clicking toggles a `.exif-collapsed` class on `#lightbox-shell`, which collapses the grid column and hides the `<aside>`. The `#lb-img` max-width is CSS-driven so it expands to fill the freed space without any inline style juggling. Preference saved to `localStorage` and restored on each `openLightbox()`. Button hidden on mobile via `@media (max-width: 640px)` since the sidebar already stacks below the image there.
+
+- [x] Add human-readable slugs for albums.
+
+  A. Done April 2026. `Album.slug` SlugField (nullable). Albums accessible at `/photos/s/<slug>/` in addition to UUID URL. Slug set via the create/edit album form. `Album.get_absolute_url()` prefers the slug URL when available.
+
+- [x] Fix the GPS "Available" indicator.
+
+  A. Done April 2026. `image_processing.py` now outputs decimal-degree coordinates (`48.8566° N, 2.3522° E`). Lightbox sidebar renders GPS as a Google Maps link when coordinates are present.
+
+### SEO, Discovery, And Sharing
+
+- [x] Add `sitemap.xml`.
+
+  A. Done April 2026. `PostSitemap`, `AlbumSitemap`, and `StaticViewSitemap` in `posts/sitemaps.py`. Registered at `/sitemap.xml` in root `urls.py`.
+
+- [x] Add `robots.txt`.
+
+  A. Done April 2026. Template at `templates/robots.txt`, served at `/robots.txt`. Points to `/sitemap.xml`.
+
+- [x] Add an RSS or Atom feed for blog posts.
+
+  A. Done April 2026. `LatestPostsFeed` in `posts/feeds.py`, registered at `/feed/`. Linked from the site footer and `<link rel="alternate">` in the base template.
+
+- [x] Add page-level SEO metadata for posts and albums (OG tags, meta description).
+
+  A. Done April 2026. `base.html` has `{% block og_* %}` / `{% block meta_description %}` blocks. Blog post detail and album detail templates override title, description, and `og:image`.
+
+### Cross-Site Experience
+
+- [x] Make navigation consistent everywhere.
+
+  A. Done April 2026. Shared `base.html` used by both blog and albums apps. Nav includes blog home, photos, and staff-only create links.
+
+- [x] Unify the visual system.
+
+  A. Done April 2026. Single shared stylesheet (`static/css/style.css`) referenced from `base.html`. Both apps inherit the same typography, spacing, and component styles.
+
+- [x] Add footer content with copyright, contact/about links, and feed/sitemap access.
+
+  A. Done April 2026. Footer in `base.html` includes copyright year, sitemap link, and RSS feed link.
+
+### Accessibility And Performance
+
+- [x] Audit all images for meaningful `alt` text.
+
+  A. Done April 2026. `Photo.alt_text` CharField added (migration). Photo edit form exposes the field. Templates use `alt_text|default:caption` so every `<img>` has a non-empty alt.
+
+- [x] Add lazy-loading for gallery images.
+
+  A. Done April 2026. `loading="lazy"` on album grid thumbnails and blog post images.
+
+### Photo Gallery Polish
+
+- [x] Show photo count on the album list page.
+
+  A. Done April 2026. Album list cards show `{{ album.photos.count }} photo{{ album.photos.count|pluralize }}`.
+
+### Content Management
+
+- [x] Document the editorial workflow for creating, previewing, publishing, and correcting content.
+
+  A. Done April 2026. See [`EDITORIAL.md`](EDITORIAL.md). Covers blog post drafting, live preview, publishing, slug changes, image embedding, and album/photo management (upload, captions, alt text, reorder, cover, replace, delete, permalinks). Also explicitly documents current limitations: no album drafts, no scheduled publishing, no preview URL for unpublished posts, no version history.
 
 ---
 
@@ -121,73 +197,46 @@ Assumed scope for "feature complete":
 
 ### P1: Blog
 
-- [ ] Separate `published_at` from `created_at`.
-  Posts should support draft creation before publication and preserve a clean publication date.
-
-- [ ] Add a richer post authoring format.
-  Current posts are plain text in a `TextField`. Choose one:
-  - Markdown with safe rendering (`python-markdown` + `bleach`)
-  - Rich text via the admin (`django-ckeditor` or `django-tinymce`)
-  - Decide how inline images are handled (S3 via editor, or linked from the albums app).
-
 - [ ] Add post metadata needed for a finished reading experience:
   - excerpt / summary
   - hero image + alt text
   - optional subtitle
 
-- [ ] Add previous / next post navigation on post detail pages.
+- [x] Add previous / next post navigation on post detail pages.
 
-- [ ] Improve archive UX.
-  The month archive needs an explicit heading, empty-state handling, and pagination parity with the main index.
+  A. Done April 2026. `PostDetailView.get_context_data()` adds `previous_post` (older, lower `published_at`) and `next_post` (newer, higher `published_at`). `post_detail.html` renders a two-column `<nav class="post-nav">` between the article and the back link.
 
-- [ ] Add friendly 404 and 500 pages that match the site layout.
+- [x] Improve archive UX.
+
+  A. Done April 2026. `PostMonthArchiveView.get_context_data()` adds `archive_label` (e.g. "April 2026"). `post_list.html` renders an `<h2 class="archive-heading">` when the label is present, sets a matching page title, and shows "No posts in April 2026." as the empty state instead of the generic "No posts yet."
+
+- [x] Add friendly 404 and 500 pages that match the site layout.
+
+  A. Done April 2026. `templates/404.html` and `templates/500.html` both extend `base.html`. Custom `handler404` and `handler500` views in `posts/views.py` render them with full request context (so the nav, footer, and sidebar work). `handler500` is registered in `blog/urls.py`; `archive_months` context processor wrapped in try/except so a DB failure during a 500 doesn't cascade.
 
 - [ ] Add an About page and a clear landing identity.
 
 ### P1: Photo Gallery
 
-- [ ] Add human-readable slugs for albums.
-  UUID-only URLs are not share-friendly or memorable.
-
 - [ ] Improve the upload flow.
   - Captions at upload time: not yet implemented — captions are added after upload via photo_edit.
   - Bulk upload UI exists with async per-file progress; cancellation is a separate open item below.
 
-### P1: Cross-Site Experience
-
-- [ ] Make navigation consistent everywhere.
-  Blog and photo templates should agree on URL strategy, nav labels, and canonical links between sections.
-
-- [ ] Unify the visual system.
-  The current templates are clean but still feel like two adjacent layouts rather than one finished site.
-
-- [ ] Add footer content with copyright, contact/about links, and feed/sitemap access.
-
-- [ ] Verify responsive behavior across blog list, blog detail, album grid, album detail lightbox, and upload flow.
-
 ### P1: SEO, Discovery, And Sharing
 
-- [ ] Add page-level SEO metadata for posts, albums, and the homepage:
-  - title templates, meta description, Open Graph tags, social preview images, canonical URLs
-
-- [ ] Add `sitemap.xml`.
-
-- [ ] Add `robots.txt`.
-
-- [ ] Add an RSS or Atom feed for blog posts.
+- [ ] Add canonical URLs to page-level SEO metadata.
+  OG tags and meta descriptions are done; `<link rel="canonical">` is not yet set.
 
 - [ ] Decide whether albums appear in the sitemap and whether draft content must be excluded.
 
 ### P1: Accessibility And Performance
 
-- [ ] Audit all images for meaningful `alt` text.
-  Gallery thumbnails are currently empty-alt or caption-derived; a dedicated alt text field on `Photo` is the right fix.
-
 - [ ] Ensure keyboard focus states and form controls are clearly visible.
 
 - [ ] Integrate a CDN and set `Cache-Control` headers for media files.
 
-- [ ] Add lazy-loading and pagination or progressive loading for large albums.
+- [ ] Add pagination or progressive loading for large albums.
+  `loading="lazy"` is set on thumbnails; server-side pagination of the album grid is not yet implemented.
 
 ### P2: Photo Gallery Polish
 
@@ -196,13 +245,6 @@ Assumed scope for "feature complete":
 
 - [ ] Add upload cancellation.
   Once a file starts uploading there is no way to abort it.
-
-- [x] Add EXIF sidebar desktop toggle.
-
-  A. Done April 2026. `◀ EXIF` / `EXIF ▶` button positioned top-left of the lightbox (mirrors the close button at top-right). Clicking toggles a `.exif-collapsed` class on `#lightbox-shell`, which collapses the grid column and hides the `<aside>`. The `#lb-img` max-width is CSS-driven so it expands to fill the freed space without any inline style juggling. Preference saved to `localStorage` and restored on each `openLightbox()`. Button hidden on mobile via `@media (max-width: 640px)` since the sidebar already stacks below the image there.
-
-- [ ] Fix the GPS "Available" indicator.
-  Either display the coordinates (and optionally a small map), or omit the field when no coordinates are surfaced.
 
 - [ ] Expand EXIF display fields.
   Professional sites (Flickr, 500px) also surface white balance, metering mode, flash, color space, and lens ID.
@@ -213,17 +255,14 @@ Assumed scope for "feature complete":
 - [ ] Add tagging and cross-album collections.
   Add tags to photos so content can be browsed across albums.
 
-- [ ] Show photo count on the album list page.
-
 ### P2: Content Management
 
 - [ ] Decide whether Django admin is the primary authoring interface or whether the site needs first-party edit screens.
 
 - [ ] If admin stays primary: better list filters, album/photo inline usability, bulk actions, clearer publish workflow.
 
-- [ ] Add explicit draft / published / hidden states for both posts and albums.
-
-- [ ] Document the editorial workflow for creating, previewing, publishing, and correcting content.
+- [ ] Add explicit draft / published / hidden states for albums.
+  Posts already have draft/published. Albums are public the moment they are created.
 
 ### P2: Testing And QA
 
@@ -247,7 +286,9 @@ Assumed scope for "feature complete":
 
 ### P2: Content
 
-- [ ] Remove placeholder fixture content or replace with intentional starter content.
+- [x] Remove placeholder fixture content or replace with intentional starter content.
+
+  A. Done April 2026. Removed the old `initial_content.json` test fixture and refreshed `seed_content.json` from the current Netcup production content at `blog.s8njee.com`: 22 posts, 14 albums, and 704 photos. The fixture is normalized for the current schema with `published_at`, album slugs, ready photo status, sort order, alt text, and image-variant defaults.
 
 - [ ] Decide whether fixtures run at all on production startup.
 

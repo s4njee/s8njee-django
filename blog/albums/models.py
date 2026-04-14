@@ -8,6 +8,7 @@ from .image_processing import extract_exif_summary, make_thumbnail_from_image_fi
 
 
 class PhotoStatus(models.TextChoices):
+    # TextChoices stores stable DB values while giving Django forms/admin labels.
     PENDING = "pending", "Pending"
     PROCESSING = "processing", "Processing"
     READY = "ready", "Ready"
@@ -15,6 +16,7 @@ class PhotoStatus(models.TextChoices):
 
 
 class Album(models.Model):
+    # UUID primary keys make public album URLs hard to enumerate.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True, null=True, blank=True)
@@ -30,6 +32,7 @@ class Album(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # Default ordering applies whenever a queryset does not specify order_by().
         ordering = ["-created_at"]
 
     def __str__(self):
@@ -37,6 +40,7 @@ class Album(models.Model):
 
     def get_absolute_url(self):
         from django.urls import reverse
+        # Templates can call this method without knowing which URL pattern is canonical.
         if self.slug:
             return reverse("album_detail_slug", kwargs={"slug": self.slug})
         return reverse("album_detail", kwargs={"pk": self.id})
@@ -54,6 +58,7 @@ class Album(models.Model):
 
 class Photo(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # related_name="photos" creates album.photos for reverse ORM lookups.
     album = models.ForeignKey(Album, on_delete=models.CASCADE, related_name="photos")
     sort_order = models.PositiveIntegerField(default=0, db_index=True)
     image = models.ImageField(upload_to="photos/%Y/%m/%d/", blank=True)
@@ -80,6 +85,7 @@ class Photo(models.Model):
         return self.caption or f"Photo in {self.album.title}"
 
     def save(self, *args, **kwargs):
+        # Assign sort_order before Django inserts a new row.
         if self._state.adding and self.sort_order == 0:
             next_order = (
                 Photo.objects.filter(album=self.album)
@@ -93,9 +99,11 @@ class Photo(models.Model):
         if not self.image:
             raise ValueError("Cannot build a thumbnail without an image.")
         thumb_name, thumb_bytes = make_thumbnail_from_image_file(self.image, str(self.id))
+        # save=False updates the FieldFile without causing a second model save.
         self.thumbnail.save(thumb_name, ContentFile(thumb_bytes), save=False)
 
     def delete_files(self):
+        # Deleting a model row does not automatically delete files from storage.
         for field_name in ("image", "image_medium", "image_small", "thumbnail", "original"):
             field_file = getattr(self, field_name)
             if field_file and field_file.name:

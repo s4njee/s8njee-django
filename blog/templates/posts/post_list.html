@@ -1,19 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}Sanjee's Journal | Blog{% endblock %}
+{% block title %}{% if archive_label %}{{ archive_label }} | {% endif %}Sanjee's Journal | Blog{% endblock %}
 {% block meta_description %}Sanjee's personal blog about life, technology, and more.{% endblock %}
 
 {% block content %}
+{% if archive_label %}<h2 class="archive-heading">{{ archive_label }}</h2>{% endif %}
 {% for post in posts %}
 <article>
     <h2><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h2>
-    <p class="meta">{{ post.created_at|date:"F j, Y" }}</p>
+    <p class="meta">{{ post.published_at|default:post.created_at|date:"F j, Y" }}</p>
     <div class="post-content">
         {{ post.rendered_content|truncatewords_html:150 }}
     </div>
 </article>
 {% empty %}
+{% if archive_label %}
+<p>No posts in {{ archive_label }}.</p>
+{% else %}
 <p>No posts yet.</p>
+{% endif %}
 {% endfor %}
 
 {% if is_paginated %}

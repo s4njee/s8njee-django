@@ -13,3 +13,6 @@ Current staged migrations:
 
 - `albums/0005_alter_photo_options_photo_sort_order.py`
 - `albums/0006_album_cover_photo.py`
+- `albums/0007_photo_image_variants.py`
+- `albums/0008_album_slug_photo_alt_text.py`
+- `posts/0002_post_published_at.py`

@@ -16,6 +16,7 @@ ACCEPTED_EXTENSIONS = {
 
 
 def validate_photo_upload(value):
+    # Form validators raise ValidationError so Django can attach messages to fields.
     ext = value.name.rsplit('.', 1)[-1].lower()
     if ext not in ACCEPTED_EXTENSIONS:
         raise ValidationError("The uploaded file is not a supported image.")
@@ -29,6 +30,7 @@ def validate_photo_upload(value):
 
 
 class AlbumForm(forms.ModelForm):
+    # The cover choices depend on the album instance, so the queryset starts empty.
     cover_photo = forms.ModelChoiceField(
         queryset=Photo.objects.none(),
         required=False,
@@ -38,6 +40,7 @@ class AlbumForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Limit ModelChoiceField options to photos from the album being edited.
         if getattr(self.instance, "pk", None):
             self.fields["cover_photo"].queryset = (
                 Photo.objects.filter(album=self.instance, status=PhotoStatus.READY)
@@ -48,6 +51,7 @@ class AlbumForm(forms.ModelForm):
             self.fields["cover_photo"].widget = forms.HiddenInput()
 
     class Meta:
+        # ModelForm Meta maps model fields to generated form fields and widgets.
         model = Album
         fields = ["title", "slug", "description", "cover_photo"]
         widgets = {
@@ -62,10 +66,15 @@ class AlbumForm(forms.ModelForm):
         }
 
     def clean_cover_photo(self):
+        # clean_<field>() runs after Django has converted the submitted PK to a model.
         cover_photo = self.cleaned_data.get("cover_photo")
         if cover_photo and cover_photo.album_id != self.instance.pk:
             raise ValidationError("Choose a cover photo from this album.")
         return cover_photo
+
+    def clean_slug(self):
+        slug = (self.cleaned_data.get("slug") or "").strip()
+        return slug or None
 
 
 class AlbumDeleteForm(forms.Form):
@@ -76,6 +85,7 @@ class AlbumDeleteForm(forms.Form):
 
 
 class PhotoUploadForm(forms.Form):
+    # A plain Form is enough here because upload creates the Photo manually.
     image = forms.FileField(
         validators=[validate_photo_upload],
         widget=forms.ClearableFileInput(
@@ -85,6 +95,7 @@ class PhotoUploadForm(forms.Form):
 
 
 class PhotoEditForm(forms.ModelForm):
+    # Extra non-model fields can ride alongside ModelForm-managed fields.
     replace_image = forms.FileField(
         required=False,
         validators=[validate_photo_upload],
@@ -119,6 +130,7 @@ class MultiPhotoForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Widget attrs affect rendered HTML without changing server-side validation.
         self.fields["images"].widget.attrs["multiple"] = True
         self.fields["images"].widget.attrs["accept"] = (
             "image/*,.nef,.cr2,.cr3,.dng,.arw,.orf,.raf,.rw2"

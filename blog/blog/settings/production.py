@@ -9,6 +9,7 @@ if SECRET_KEY == 'local-dev-insecure-secret-key':
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS')
 CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
 
+# DATABASES is consumed by Django's ORM, migrations, and management commands.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -20,7 +21,7 @@ DATABASES = {
     }
 }
 
-# Security settings for production
+# These settings are Django's built-in HTTPS/cookie hardening switches.
 if env_bool('ENABLE_SSL', False):
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True

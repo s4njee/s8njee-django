@@ -21,9 +21,11 @@ from posts.db_backups import (
 
 
 class Command(BaseCommand):
+    # Django exposes this as manage.py backup_postgres_if_changed.
     help = "Create a compressed PostgreSQL backup and upload it to S3 only when the dump changes."
 
     def add_arguments(self, parser):
+        # add_arguments extends Django's command parser with command-specific flags.
         parser.add_argument("--bucket", help="Destination S3 bucket. Defaults to DB_BACKUP_BUCKET or AWS_STORAGE_BUCKET_NAME.")
         parser.add_argument("--prefix", help="Destination key prefix. Defaults to DB_BACKUP_PREFIX.")
         parser.add_argument("--force", action="store_true", help="Upload a backup even when the digest matches the latest manifest.")

@@ -4,6 +4,7 @@ from .models import Post
 from albums.models import Album
 
 class PostSitemap(Sitemap):
+    # Django's sitemap framework calls items(), location(), and lastmod().
     changefreq = "weekly"
     priority = 0.8
 
@@ -31,4 +32,5 @@ class StaticViewSitemap(Sitemap):
         return ['post_list', 'album_list']
 
     def location(self, item):
+        # reverse() resolves a named URL into the path exposed in urls.py.
         return reverse(item)

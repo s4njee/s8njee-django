@@ -3,6 +3,7 @@ from albums.models import Photo
 
 
 class Command(BaseCommand):
+    # BaseCommand.handle() is the entrypoint for custom manage.py commands.
     help = "Generate thumbnails for existing photos that don't have one"
 
     def handle(self, *args, **options):

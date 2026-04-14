@@ -9,10 +9,32 @@
 {% block content %}
 <article>
     <h1>{{ post.title }}</h1>
-    <p class="meta">{{ post.created_at|date:"F j, Y" }}</p>
+    <p class="meta">{{ post.published_at|default:post.created_at|date:"F j, Y" }}</p>
     <div class="content post-content">
         {{ post.rendered_content }}
     </div>
 </article>
+
+{% if previous_post or next_post %}
+<nav class="post-nav" aria-label="Post navigation">
+    <div class="post-nav-prev">
+        {% if previous_post %}
+        <a href="{{ previous_post.get_absolute_url }}">
+            <span class="post-nav-label">← Previous</span>
+            <span class="post-nav-title">{{ previous_post.title }}</span>
+        </a>
+        {% endif %}
+    </div>
+    <div class="post-nav-next">
+        {% if next_post %}
+        <a href="{{ next_post.get_absolute_url }}">
+            <span class="post-nav-label">Next →</span>
+            <span class="post-nav-title">{{ next_post.title }}</span>
+        </a>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}
+
 <p><a class="back-link" href="{% url 'post_list' %}">← Back to all posts</a></p>
 {% endblock %}

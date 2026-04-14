@@ -13,4 +13,5 @@ from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'blog.settings.production')
 
+# WSGI application object used by traditional synchronous app servers.
 application = get_wsgi_application()

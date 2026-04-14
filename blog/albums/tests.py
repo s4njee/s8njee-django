@@ -163,6 +163,23 @@ class PhotoUploadAsyncTests(TestCase):
         self.assertEqual(self.album.title, "Renamed Album")
         self.assertEqual(self.album.description, "Updated description")
 
+    def test_staff_can_save_multiple_albums_without_slugs(self):
+        self.client.force_login(self.staff_user)
+
+        first_response = self.client.post(
+            reverse("album_create"),
+            {"title": "First Album", "slug": "", "description": ""},
+        )
+        second_response = self.client.post(
+            reverse("album_create"),
+            {"title": "Second Album", "slug": "", "description": ""},
+        )
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        self.assertIsNone(Album.objects.get(title="First Album").slug)
+        self.assertIsNone(Album.objects.get(title="Second Album").slug)
+
     def test_staff_can_choose_album_cover_photo(self):
         self.client.force_login(self.staff_user)
 
@@ -197,6 +214,47 @@ class PhotoUploadAsyncTests(TestCase):
         list_response = self.client.get(reverse("album_list"))
         self.assertContains(list_response, second_photo.thumbnail.url)
         self.assertNotContains(list_response, first_photo.thumbnail.url)
+
+    def test_staff_can_set_album_cover_from_photo_card(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            upload_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("cover-card.png")},
+            )
+
+        photo = Photo.objects.get(pk=upload_response.json()["id"])
+        response = self.client.post(
+            reverse("album_set_cover_photo", kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk})
+        )
+
+        self.assertRedirects(response, reverse("album_detail", kwargs={"pk": self.album.pk}))
+        self.album.refresh_from_db()
+        self.assertEqual(self.album.cover_photo_id, photo.pk)
+
+    def test_pending_photos_do_not_offer_cover_action(self):
+        self.client.force_login(self.staff_user)
+        Photo.objects.create(album=self.album, status=PhotoStatus.PENDING)
+
+        response = self.client.get(reverse("album_detail", kwargs={"pk": self.album.pk}))
+
+        self.assertNotContains(response, "Set as Album Cover")
+
+    def test_album_images_have_non_empty_alt_fallback(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("no-alt.png")},
+            )
+
+        detail_response = self.client.get(reverse("album_detail", kwargs={"pk": self.album.pk}))
+        list_response = self.client.get(reverse("album_list"))
+
+        self.assertContains(detail_response, 'alt="Async Album"', html=False)
+        self.assertContains(list_response, 'alt="Async Album"', html=False)
 
     def test_staff_can_delete_album_and_album_photos(self):
         self.client.force_login(self.staff_user)

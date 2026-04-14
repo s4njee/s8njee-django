@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
     retry_kwargs={"max_retries": 3},
 )
 def process_photo(self, photo_id: str):
+    # Celery task arguments should be primitive IDs; the ORM fetches fresh state.
     photo = Photo.objects.get(pk=photo_id)
 
     if photo.status == PhotoStatus.READY:
@@ -33,6 +34,7 @@ def process_photo(self, photo_id: str):
         original_name = photo.original.name or f"{photo.id}"
         photo.exif_data = extract_exif_summary(file_bytes)
         processed = process_uploaded_image(original_name, file_bytes)
+        # FieldFile.save(..., save=False) stores bytes without saving the model row yet.
         photo.image.save(processed.name, processed, save=False)
 
         # Read the saved full-size image once; reuse bytes for all variants.
@@ -52,6 +54,7 @@ def process_photo(self, photo_id: str):
 
         photo.status = PhotoStatus.READY
         photo.error = ""
+        # update_fields keeps this ORM write scoped to fields changed by processing.
         photo.save(update_fields=["image", "image_medium", "image_small", "thumbnail", "exif_data", "status", "error"])
 
         # Delete the staging original from storage now that processing is complete.

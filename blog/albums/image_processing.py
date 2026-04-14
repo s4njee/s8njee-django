@@ -315,10 +315,21 @@ def make_image_variant(file_bytes: bytes, file_name: str, max_dim: int, photo_id
 
 
 def make_thumbnail_from_image_file(image_file, photo_id: str) -> tuple[str, bytes]:
-    img = Image.open(image_file)
+    file_name = getattr(image_file, "name", "")
+    if hasattr(image_file, "open"):
+        image_file.open("rb")
+    try:
+        if hasattr(image_file, "seek"):
+            image_file.seek(0)
+        file_bytes = image_file.read()
+    finally:
+        if hasattr(image_file, "close"):
+            image_file.close()
+
+    img = Image.open(io.BytesIO(file_bytes))
     img.thumbnail((400, 800), Image.LANCZOS)
 
-    fmt, ext = _thumbnail_format_and_extension(image_file.name)
+    fmt, ext = _thumbnail_format_and_extension(file_name)
     out_buf = io.BytesIO()
     save_kwargs = {"format": fmt}
     if fmt == "JPEG":

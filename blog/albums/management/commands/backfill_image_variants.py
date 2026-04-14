@@ -11,6 +11,7 @@ VARIANTS = [
 
 
 class Command(BaseCommand):
+    # BaseCommand gives us styled stdout/stderr and option parsing.
     help = "Generate missing image_medium and image_small variants for existing ready photos."
 
     def handle(self, *args, **options):

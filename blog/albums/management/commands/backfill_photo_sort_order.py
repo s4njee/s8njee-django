@@ -5,6 +5,7 @@ from albums.models import Album, Photo
 
 
 class Command(BaseCommand):
+    # Django discovers this as manage.py backfill_photo_sort_order from its filename.
     help = "Backfill sequential photo sort order for albums that still have default ordering"
 
     def handle(self, *args, **options):

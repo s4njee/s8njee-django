@@ -6,7 +6,12 @@ from django.views.generic import RedirectView, TemplateView
 from django.contrib.sitemaps.views import sitemap
 from posts.sitemaps import PostSitemap, AlbumSitemap, StaticViewSitemap
 from posts.feeds import LatestPostsFeed
+from posts.views import handler404 as custom_404, handler500 as custom_500
 
+handler404 = custom_404
+handler500 = custom_500
+
+# The sitemap view asks each Sitemap class for URLs and last-modified dates.
 sitemaps = {
     'static': StaticViewSitemap,
     'posts': PostSitemap,
@@ -14,6 +19,7 @@ sitemaps = {
 }
 
 urlpatterns = [
+    # path() maps URL patterns to views; include() delegates to app-level urls.py.
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
@@ -25,4 +31,5 @@ urlpatterns = [
 ]
 
 if settings.MEDIA_URL.startswith('/'):
+    # In local/dev file storage, Django can serve MEDIA_ROOT through this helper.
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

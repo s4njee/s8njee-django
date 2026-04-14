@@ -33,6 +33,7 @@ def env_list(name, default=None):
 
 SECRET_KEY = env('SECRET_KEY', 'local-dev-insecure-secret-key')
 
+# INSTALLED_APPS tells Django which app configs, models, templates, and checks to load.
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sitemaps',
 ]
 
+# Middleware wraps every request/response in this order.
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -65,6 +67,7 @@ TEMPLATES = [
         'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
+            # Context processors add common variables to template contexts.
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -104,6 +107,7 @@ AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com' if AWS_STOR
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = False
 
+# STORAGES lets FileField/ImageField and staticfiles switch backends by setting.
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',

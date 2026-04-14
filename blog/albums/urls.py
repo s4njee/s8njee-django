@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # URL names are the stable contract used by reverse() and template {% url %}.
     path("", views.AlbumListView.as_view(), name="album_list"),
     path("create/", views.album_create, name="album_create"),
     path("<uuid:pk>/edit/", views.album_edit, name="album_edit"),

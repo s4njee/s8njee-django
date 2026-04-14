@@ -20,14 +20,17 @@ from .tasks import process_photo
 
 
 class AlbumListView(ListView):
+    # Generic ListView handles pagination-ready list rendering from a queryset.
     model = Album
     template_name = "albums/album_list.html"
     context_object_name = "albums"
+    # select_related joins FK rows; prefetch_related does a second query for reverse FKs.
     queryset = Album.objects.select_related("cover_photo").prefetch_related("photos")
 
 
 def album_detail(request, pk=None, slug=None):
     if slug:
+        # get_object_or_404 turns an empty queryset into Django's Http404 response.
         album = get_object_or_404(Album, slug=slug)
     else:
         album = get_object_or_404(Album, pk=pk)
@@ -47,11 +50,13 @@ def album_detail(request, pk=None, slug=None):
             "url_medium": photo.image_medium.url if photo.image_medium else "",
             "url_small": photo.image_small.url if photo.image_small else "",
             "caption": photo.caption,
+            "alt_text": photo.alt_text,
             "exif": photo.exif_display_items(),
         }
         for photo in ready_photos
     ]
     return render(
+        # render combines the request, template, and context into an HttpResponse.
         request,
         "albums/album_detail.html",
         {
@@ -65,6 +70,7 @@ def album_detail(request, pk=None, slug=None):
 
 @staff_member_required
 def album_create(request):
+    # staff_member_required redirects non-staff users to the admin login.
     if request.method == "POST":
         form = AlbumForm(request.POST)
         if form.is_valid():
@@ -128,6 +134,7 @@ def album_delete(request, pk):
 @staff_member_required
 @require_POST
 def album_set_cover_photo(request, album_pk, photo_pk):
+    # require_POST rejects unsafe GET requests before the view mutates data.
     album = get_object_or_404(Album, pk=album_pk)
     photo = get_object_or_404(Photo, pk=photo_pk, album=album)
     if photo.status != PhotoStatus.READY or not photo.image:
@@ -144,6 +151,7 @@ def photo_upload(request, album_pk):
 
 
 def _photo_status_payload(photo: Photo, album_pk):
+    # reverse keeps API payload links synced with urls.py names.
     payload = {
         "id": str(photo.pk),
         "album_id": str(album_pk),
@@ -166,6 +174,7 @@ def photo_upload_single(request, album_pk):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
 
+    # request.FILES carries uploaded file objects; request.POST only has form fields.
     form = PhotoUploadForm(request.POST, request.FILES)
     if not form.is_valid():
         errors = form.errors.get("image") or form.non_field_errors()
@@ -180,6 +189,7 @@ def photo_upload_single(request, album_pk):
     def queue_photo_processing() -> None:
         process_photo.delay(str(photo.pk))
 
+    # Queue Celery only after the database transaction has committed the Photo row.
     transaction.on_commit(queue_photo_processing)
     photo.refresh_from_db()
 
@@ -193,12 +203,23 @@ def photo_edit(request, album_pk, photo_pk):
     photo = get_object_or_404(Photo, pk=photo_pk, album=album)
 
     if request.method == "POST":
+        # instance=photo tells ModelForm to update this row instead of creating one.
         form = PhotoEditForm(request.POST, request.FILES, instance=photo)
         if form.is_valid():
             replace_image = form.cleaned_data.get("replace_image")
             saved_photo = form.save(commit=False)
             if replace_image:
-                old_files = [saved_photo.image, saved_photo.image_medium, saved_photo.image_small, saved_photo.thumbnail, saved_photo.original]
+                old_files = [
+                    (field_file.storage, field_file.name)
+                    for field_file in [
+                        saved_photo.image,
+                        saved_photo.image_medium,
+                        saved_photo.image_small,
+                        saved_photo.thumbnail,
+                        saved_photo.original,
+                    ]
+                    if field_file and field_file.name
+                ]
                 saved_photo.original = replace_image
                 saved_photo.image = ""
                 saved_photo.image_medium = ""
@@ -208,9 +229,8 @@ def photo_edit(request, album_pk, photo_pk):
                 saved_photo.error = ""
                 saved_photo.status = PhotoStatus.PENDING
                 saved_photo.save()
-                for field_file in old_files:
-                    if field_file and field_file.name:
-                        field_file.storage.delete(field_file.name)
+                for storage, name in old_files:
+                    storage.delete(name)
                 transaction.on_commit(lambda: process_photo.delay(str(saved_photo.pk)))
             else:
                 saved_photo.save()
@@ -263,6 +283,7 @@ def photo_move(request, album_pk, photo_pk, direction):
     if direction not in {"up", "down"}:
         return JsonResponse({"error": "Invalid direction."}, status=400)
 
+    # select_for_update locks rows during this reorder transaction.
     with transaction.atomic():
         photo = Photo.objects.select_for_update().get(pk=photo.pk, album=album)
         if direction == "up":
@@ -307,6 +328,7 @@ def photo_reorder(request, album_pk):
     if len(ordered_photo_ids) != len(existing_ids) or ordered_id_set != existing_id_set:
         return JsonResponse({"error": "Photo order does not match this album."}, status=400)
 
+    # Atomic bulk reordering avoids partially-saved drag-and-drop order.
     with transaction.atomic():
         locked_photos = {
             str(photo.pk): photo
@@ -333,4 +355,5 @@ def photo_permalink(request, album_pk, photo_pk):
     album = get_object_or_404(Album, pk=album_pk)
     get_object_or_404(Photo, pk=photo_pk, album=album)
     url = reverse("album_detail", kwargs={"pk": album_pk})
+    # HttpResponseRedirect is useful when the redirect target includes a hash fragment.
     return HttpResponseRedirect(f"{url}#photo-{photo_pk}")

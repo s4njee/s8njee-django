@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from .models import Post
@@ -196,3 +197,44 @@ class PostEditorTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"], "The uploaded file is not a supported image.")
+
+
+class PostPublishingTests(TestCase):
+    def test_published_at_is_set_on_first_publish_only(self):
+        post = Post.objects.create(
+            title="Draft",
+            slug="draft",
+            content="Draft body",
+            published=False,
+        )
+
+        self.assertIsNone(post.published_at)
+
+        post.published = True
+        post.save()
+        first_published_at = post.published_at
+
+        self.assertIsNotNone(first_published_at)
+
+        post.title = "Retitled"
+        post.save()
+        post.refresh_from_db()
+
+        self.assertEqual(post.published_at, first_published_at)
+
+    def test_archive_uses_published_month_not_created_month(self):
+        published_at = timezone.datetime(2026, 4, 5, 12, tzinfo=timezone.get_current_timezone())
+        post = Post.objects.create(
+            title="Published Later",
+            slug="published-later",
+            content="Body",
+            published=True,
+            published_at=published_at,
+        )
+        Post.objects.filter(pk=post.pk).update(created_at=timezone.datetime(2026, 1, 5, 12, tzinfo=timezone.get_current_timezone()))
+
+        april_response = self.client.get(reverse("post_archive_month", kwargs={"year": 2026, "month": 4}))
+        january_response = self.client.get(reverse("post_archive_month", kwargs={"year": 2026, "month": 1}))
+
+        self.assertContains(april_response, "Published Later")
+        self.assertNotContains(january_response, "Published Later")

@@ -7,9 +7,11 @@ from .models import Post
 class PostEditorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # ModelForm fields can be tuned after Django builds them from the model.
         self.fields["slug"].required = False
 
     class Meta:
+        # Meta tells ModelForm which model fields to expose and how to render them.
         model = Post
         fields = ["title", "slug", "content", "published"]
         widgets = {
@@ -26,6 +28,7 @@ class PostEditorForm(forms.ModelForm):
         }
 
     def clean_slug(self):
+        # clean_<field>() is Django's per-field validation hook.
         slug = self.cleaned_data.get("slug", "").strip()
         title = self.cleaned_data.get("title", "").strip()
         return slug or slugify(title)

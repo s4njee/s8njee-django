@@ -3,6 +3,7 @@ from django.utils.text import slugify
 from albums.models import Album
 
 class Command(BaseCommand):
+    # Commands under management/commands become first-class manage.py commands.
     help = 'Backfills slugs for albums based on their titles.'
 
     def handle(self, *args, **options):

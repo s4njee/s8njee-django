@@ -13,4 +13,5 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'blog.settings.production')
 
+# ASGI application object used by async-capable servers such as Uvicorn.
 application = get_asgi_application()

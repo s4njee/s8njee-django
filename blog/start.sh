@@ -15,5 +15,7 @@ else
   uv run python manage.py loaddata fixtures/seed_content.json
 fi
 uv run python manage.py backfill_photo_sort_order
+uv run python manage.py backfill_album_slugs
+uv run python manage.py backfill_image_variants
 uv run python manage.py collectstatic --noinput
 exec uv run uvicorn blog.asgi:application --host 0.0.0.0 --port 8000 --workers 2 --lifespan off

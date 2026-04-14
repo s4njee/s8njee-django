@@ -3,12 +3,13 @@ from django.urls import reverse
 from .models import Post
 
 class LatestPostsFeed(Feed):
+    # Feed is Django's syndication class; item_* methods map model fields to RSS.
     title = "Sanjee's Journal"
     link = "/"
     description = "Latest blog posts from Sanjee's journal."
 
     def items(self):
-        return Post.objects.filter(published=True).order_by('-created_at')[:10]
+        return Post.objects.filter(published=True).order_by('-published_at', '-created_at')[:10]
 
     def item_title(self, item):
         return item.title
@@ -18,4 +19,4 @@ class LatestPostsFeed(Feed):
         return item.content[:300] + '...' if len(item.content) > 300 else item.content
 
     def item_pubdate(self, item):
-        return item.created_at
+        return item.published_at or item.created_at

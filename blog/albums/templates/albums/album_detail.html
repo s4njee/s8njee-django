@@ -71,9 +71,9 @@
       onclick="handleCardClick(event, '{{ photo.pk }}')"
     >
       {% if photo.thumbnail %}
-        <img src="{{ photo.thumbnail.url }}" alt="{{ photo.alt_text|default:photo.caption|default:'' }}" loading="lazy">
+        <img src="{{ photo.thumbnail.url }}" alt="{{ photo.alt_text|default:photo.caption|default:album.title }}" loading="lazy">
       {% else %}
-        <img src="{{ photo.image.url }}" alt="{{ photo.alt_text|default:photo.caption|default:'' }}" loading="lazy">
+        <img src="{{ photo.image.url }}" alt="{{ photo.alt_text|default:photo.caption|default:album.title }}" loading="lazy">
       {% endif %}
       <div class="card-body">
         {% if user.is_staff %}
@@ -131,12 +131,6 @@
         {% if photo.caption %}<div>{{ photo.caption }}</div>{% endif %}
         {% if user.is_staff %}
         <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem">
-          {% if album.cover_photo_id != photo.pk %}
-          <form method="post" action="{% url 'album_set_cover_photo' album.pk photo.pk %}" style="display:inline">
-            {% csrf_token %}
-            <button type="submit" class="btn" style="padding:.35rem .7rem;background:#0f766e">Set as Album Cover</button>
-          </form>
-          {% endif %}
           <a href="{% url 'photo_edit' album.pk photo.pk %}" class="btn" style="padding:.35rem .7rem;background:#333">Edit</a>
           <form method="post" action="{% url 'photo_delete' album.pk photo.pk %}" style="display:inline">
             {% csrf_token %}
@@ -358,7 +352,7 @@ function showPhoto() {
   if (!p) return;
   const img = document.getElementById('lb-img');
   img.src = p.url;
-  img.alt = p.caption || ('Photo ' + (currentIndex + 1) + ' of ' + photos.length);
+  img.alt = p.alt_text || p.caption || ('Photo ' + (currentIndex + 1) + ' of ' + photos.length);
   if (p.url_small && p.url_medium) {
     img.srcset = p.url_small + ' 800w, ' + p.url_medium + ' 1200w, ' + p.url + ' 1920w';
     img.sizes = '(max-width: 640px) 100vw, calc(100vw - 360px)';
@@ -438,20 +432,28 @@ function renderExif(items) {
     dt.style.flexDirection = 'column';
     dt.style.gap = '2px';
     dt.style.flex = '0 0 auto';
-    let valueHtml = `<div style="margin:0;padding:0;font-size:.82rem;line-height:1.1;color:#e5e7eb;word-break:break-word">${item.value}</div>`;
-    
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1.05;margin:0;padding:0';
+    label.textContent = item.label;
+    const value = document.createElement('div');
+    value.style.cssText = 'margin:0;padding:0;font-size:.82rem;line-height:1.1;color:#e5e7eb;word-break:break-word';
+    value.textContent = item.value;
+    dt.appendChild(label);
+    dt.appendChild(value);
+
     if (item.label === "GPS") {
-        const coords = item.value.replace(/[^\d.NS EW,-]/g, '').replace(/[NSEW]/g, '').split(',');
+        const coords = String(item.value).replace(/[^\d.NS EW,-]/g, '').replace(/[NSEW]/g, '').split(',');
         if (coords.length === 2) {
-            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${item.value.replace(/°/g, '')}`;
-            valueHtml += `<a href="${mapUrl}" target="_blank" style="font-size:.75rem;color:#2563eb;text-decoration:underline;margin-top:4px;display:inline-block">View on Map</a>`;
+            const mapLink = document.createElement('a');
+            mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(item.value).replace(/°/g, ''))}`;
+            mapLink.target = '_blank';
+            mapLink.rel = 'noopener noreferrer';
+            mapLink.style.cssText = 'font-size:.75rem;color:#2563eb;text-decoration:underline;margin-top:4px;display:inline-block';
+            mapLink.textContent = 'View on Map';
+            dt.appendChild(mapLink);
         }
     }
 
-    dt.innerHTML = `
-      <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1.05;margin:0;padding:0">${item.label}</div>
-      ${valueHtml}
-    `;
     list.appendChild(dt);
   }
 }
