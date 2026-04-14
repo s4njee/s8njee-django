@@ -130,13 +130,13 @@ def _format_exif_value(tag_name: str, value) -> str:
             value = repr(value)
     if tag_name == "ExposureTime":
         formatted = _format_rational(value)
-        return f"{formatted} s"
+        return f"{formatted}s"
     if tag_name == "FNumber":
         return f"f/{_format_rational(value)}"
     if tag_name == "FocalLength":
-        return f"{_format_rational(value)} mm"
+        return f"{_format_rational(value)}mm"
     if tag_name == "FocalLengthIn35mmFormat":
-        return f"{_format_rational(value)} mm"
+        return f"{_format_rational(value)}mm"
     if tag_name in {"ImageWidth", "ImageLength"}:
         return str(value)
     if tag_name == "ISOSpeedRatings":
@@ -260,6 +260,28 @@ def process_uploaded_image(filename: str, file_bytes: bytes) -> ContentFile:
     if ext in RAW_EXTENSIONS:
         return _encode_raw_to_avif(filename, file_bytes)
     return _encode_regular_image(filename, file_bytes)
+
+
+def make_image_variant(file_bytes: bytes, file_name: str, max_dim: int, photo_id: str, suffix: str) -> tuple[str, bytes]:
+    """Resize an already-processed image to at most max_dim on its longest edge.
+
+    Returns (filename, bytes) ready to be saved to a model ImageField.
+    Only downscales; images smaller than max_dim are saved as-is.
+    """
+    img = Image.open(io.BytesIO(file_bytes))
+    w, h = img.size
+    if max(w, h) > max_dim:
+        scale = max_dim / max(w, h)
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+    fmt, ext = _thumbnail_format_and_extension(file_name)
+    out_buf = io.BytesIO()
+    save_kwargs: dict = {"format": fmt}
+    if fmt in {"JPEG", "AVIF"}:
+        save_kwargs["quality"] = 85
+    img.save(out_buf, **save_kwargs)
+    out_buf.seek(0)
+    return f"photo_{photo_id}_{suffix}{ext}", out_buf.read()
 
 
 def make_thumbnail_from_image_file(image_file, photo_id: str) -> tuple[str, bytes]:

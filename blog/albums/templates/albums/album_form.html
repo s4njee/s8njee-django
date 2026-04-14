@@ -1,15 +1,21 @@
 {% extends "albums/base.html" %}
-{% block title %}New Album{% endblock %}
+{% block title %}{{ page_title|default:"Album" }}{% endblock %}
 {% block content %}
-<h1 style="margin-bottom:1.5rem">New Album</h1>
+<h1 style="margin-bottom:1.5rem">{{ page_title|default:"Album" }}</h1>
 <form method="post" style="max-width:500px">
   {% csrf_token %}
   {% for field in form %}
+  {% if field.is_hidden %}
+    {{ field }}
+  {% else %}
   <div class="form-group">
     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
+    {% if field.errors %}<div style="color:#fca5a5;font-size:.85rem;margin-top:.35rem">{{ field.errors|striptags }}</div>{% endif %}
   </div>
+  {% endif %}
   {% endfor %}
-  <button type="submit" class="btn">Create Album</button>
+  <button type="submit" class="btn">{{ submit_label|default:"Save" }}</button>
+  {% if album %}<a href="{% url 'album_detail' album.pk %}" class="btn" style="background:#333;margin-left:.5rem">Cancel</a>{% endif %}
 </form>
 {% endblock %}

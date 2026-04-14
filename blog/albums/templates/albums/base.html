@@ -43,7 +43,7 @@
         <a href="{% url 'album_list' %}" class="nav-link">Photos</a>
       </nav>
     </div>
-    <div>{% if user.is_authenticated %}<a href="{% url 'album_create' %}" class="btn">+ New Album</a> <form method="post" action="{% url 'logout' %}" style="display:inline"><button type="submit" class="btn" style="background:#333">{% csrf_token %}Logout</button></form>{% endif %}</div>
+    <div>{% if user.is_staff %}<a href="{% url 'album_create' %}" class="btn">+ New Album</a> <form method="post" action="{% url 'logout' %}" style="display:inline"><button type="submit" class="btn" style="background:#333">{% csrf_token %}Logout</button></form>{% endif %}</div>
   </header>
   <div>{% block content %}{% endblock %}</div>
 </body>

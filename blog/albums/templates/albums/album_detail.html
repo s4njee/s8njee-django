@@ -1,27 +1,107 @@
 {% extends "albums/base.html" %}
 {% block title %}{{ album.title }}{% endblock %}
 {% block content %}
+<style>
+  .photo-card[data-ready-photo="true"] { cursor: pointer; }
+  .photo-card.dragging { opacity: .55; }
+  .photo-card.drag-over { outline: 2px solid #2563eb; outline-offset: 2px; }
+  .photo-card .drag-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    color: #a3a3a3;
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  #lb-img { max-width: calc(100vw - 320px - 2.5rem); }
+  #lightbox-shell.exif-collapsed { grid-template-columns: minmax(0, 1fr) !important; }
+  #lightbox-shell.exif-collapsed > aside { display: none; }
+  #lightbox-shell.exif-collapsed #lb-img { max-width: calc(100vw - 2.5rem); }
+  @media (max-width: 640px) {
+    #lb-exif-toggle { display: none; }
+    #lightbox-shell {
+      grid-template-columns: 1fr !important;
+      overflow-y: auto;
+    }
+    #lightbox-shell > aside {
+      width: 100% !important;
+      height: auto !important;
+      order: 2;
+      flex-shrink: 0;
+    }
+    #lb-img {
+      max-width: 100vw !important;
+      max-height: 55vh !important;
+    }
+  }
+</style>
 <div class="album-header">
   <div>
     <h1>{{ album.title }}</h1>
     {% if album.description %}<p style="color:#999;margin-top:.3rem">{{ album.description }}</p>{% endif %}
   </div>
-  {% if user.is_authenticated %}<a href="{% url 'photo_upload' album.pk %}" class="btn">+ Upload Photos</a>{% endif %}
+  {% if user.is_staff %}
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end">
+    <a href="{% url 'album_edit' album.pk %}" class="btn" style="background:#333">Edit Album</a>
+    <a href="{% url 'album_delete' album.pk %}" class="btn" style="background:#7f1d1d">Delete Album</a>
+    <a href="{% url 'photo_upload' album.pk %}" class="btn">+ Upload Photos</a>
+  </div>
+  {% endif %}
 </div>
+{% if user.is_staff and photos %}
+<div id="reorder-status" style="display:none;margin:0 0 1rem;color:#888;font-size:.85rem"></div>
+{% endif %}
 {% if album.photos.all %}
 <div class="grid">
   {% for photo in photos %}
   {% if photo.status == "ready" and photo.image %}
-    <div class="card" style="cursor:pointer" onclick="openLightbox({{ photo.ready_index }})">
+    <div
+      class="card photo-card"
+      data-photo-id="{{ photo.pk }}"
+      data-ready-photo="true"
+      {% if user.is_staff %}draggable="true" ondragstart="beginDrag(event)" ondragend="endDrag(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endif %}
+      onclick="handleCardClick(event, '{{ photo.pk }}')"
+    >
       {% if photo.thumbnail %}
         <img src="{{ photo.thumbnail.url }}" alt="{{ photo.caption }}" loading="lazy">
       {% else %}
         <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" loading="lazy">
       {% endif %}
-      {% if photo.caption %}<div class="card-body">{{ photo.caption }}</div>{% endif %}
+      <div class="card-body">
+        {% if user.is_staff %}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem">
+          <div class="drag-hint">Drag to reorder</div>
+          {% if album.cover_photo_id == photo.pk %}
+          <span style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#4ade80">Cover</span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if photo.caption %}<div>{{ photo.caption }}</div>{% endif %}
+        {% if user.is_staff %}
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem" onclick="event.stopPropagation()">
+          {% if album.cover_photo_id != photo.pk %}
+          <form method="post" action="{% url 'album_set_cover_photo' album.pk photo.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="padding:.35rem .7rem;background:#0f766e">Set as Album Cover</button>
+          </form>
+          {% endif %}
+          <a href="{% url 'photo_edit' album.pk photo.pk %}" class="btn" style="padding:.35rem .7rem;background:#333">Edit</a>
+          <form method="post" action="{% url 'photo_delete' album.pk photo.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="padding:.35rem .7rem;background:#7f1d1d">Delete</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
     </div>
   {% else %}
-    <div class="card" style="cursor:default">
+    <div
+      class="card photo-card"
+      data-photo-id="{{ photo.pk }}"
+      data-ready-photo="false"
+      {% if user.is_staff %}draggable="true" ondragstart="beginDrag(event)" ondragend="endDrag(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endif %}
+    >
       <div style="width:100%;aspect-ratio:1;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#888;font-size:.85rem;text-align:center;padding:1rem">
         <div>
           <div style="font-weight:600;margin-bottom:.25rem">{{ photo.get_status_display }}</div>
@@ -32,19 +112,48 @@
           {% endif %}
         </div>
       </div>
-      {% if photo.caption %}<div class="card-body">{{ photo.caption }}</div>{% endif %}
+      <div class="card-body">
+        {% if user.is_staff %}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem">
+          <div class="drag-hint">Drag to reorder</div>
+          {% if album.cover_photo_id == photo.pk %}
+          <span style="font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#4ade80">Cover</span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if photo.caption %}<div>{{ photo.caption }}</div>{% endif %}
+        {% if user.is_staff %}
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem">
+          {% if album.cover_photo_id != photo.pk %}
+          <form method="post" action="{% url 'album_set_cover_photo' album.pk photo.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="padding:.35rem .7rem;background:#0f766e">Set as Album Cover</button>
+          </form>
+          {% endif %}
+          <a href="{% url 'photo_edit' album.pk photo.pk %}" class="btn" style="padding:.35rem .7rem;background:#333">Edit</a>
+          <form method="post" action="{% url 'photo_delete' album.pk photo.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="padding:.35rem .7rem;background:#7f1d1d">Delete</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
     </div>
   {% endif %}
   {% endfor %}
 </div>
 
 <!-- Lightbox -->
-<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.98);z-index:1000;cursor:pointer" onclick="handleLightboxClick(event)">
-  <div style="position:absolute;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:1002" onclick="closeLightbox()">&times;</div>
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" tabindex="-1" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.98);z-index:1000;outline:none" onclick="handleLightboxClick(event)">
+  <button id="lb-exif-toggle" type="button" onclick="toggleExif()" style="position:absolute;top:1.2rem;left:1.5rem;color:#aaa;font-size:.75rem;cursor:pointer;z-index:1002;background:transparent;border:1px solid #444;padding:.3rem .6rem;border-radius:2px;letter-spacing:.05em"></button>
+  <button id="lb-close" type="button" aria-label="Close photo viewer" style="position:absolute;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:1002;background:transparent;border:0;padding:.25rem .5rem;line-height:1" onclick="closeLightbox()">&times;</button>
   <div id="lightbox-shell" style="position:absolute;inset:1rem;display:grid;grid-template-columns:280px minmax(0,1fr);gap:.25rem;align-items:stretch;justify-content:center" onclick="event.stopPropagation()">
     <aside style="width:280px;height:calc(100vh - 2rem);box-sizing:border-box;background:#000;border:1px solid #222;border-radius:0;padding:1rem;color:#ddd;overflow:hidden;display:flex;flex-direction:column;cursor:default" onclick="event.stopPropagation()">
-      <div id="lb-counter" style="color:#888;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1rem"></div>
-      <h2 style="font-size:1.15rem;margin:0 0 .75rem 0;color:#fff">EXIF</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div id="lb-counter" style="color:#888;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase"></div>
+        <button id="lb-copy-link" type="button" onclick="copyPhotoLink()" style="background:transparent;border:1px solid #444;color:#aaa;font-size:.75rem;padding:.2rem .5rem;cursor:pointer;border-radius:2px;flex-shrink:0">Copy link</button>
+      </div>
+      <h2 id="lb-exif-title" style="font-size:1.15rem;margin:0 0 .75rem 0;color:#fff">EXIF</h2>
       <div id="lb-exif-empty" style="display:none;color:#777;font-size:.9rem;line-height:1.5">No EXIF metadata found for this image.</div>
       <dl id="lb-exif-list" style="margin:0;display:flex;flex-direction:column;gap:30px;flex:0 1 auto;overflow:auto"></dl>
     </aside>
@@ -53,7 +162,7 @@
         <button type="button" aria-label="Previous photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto();"></button>
         <button type="button" aria-label="Next photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); currentIndex = (currentIndex + 1) % photos.length; showPhoto();"></button>
       </div>
-      <img id="lb-img" style="max-width:calc(100vw - 320px - 2.5rem);max-height:calc(100vh - 3rem);object-fit:contain;border-radius:0" src="" alt="">
+      <img id="lb-img" style="max-height:calc(100vh - 3rem);object-fit:contain;border-radius:0" src="" alt="">
       <div id="lb-caption" style="margin-top:.75rem;color:#ccc;font-size:.95rem;text-align:center;max-width:90%"></div>
     </section>
   </div>
@@ -62,29 +171,249 @@
 {{ ready_photo_payloads|json_script:"ready-photos-data" }}
 
 <script>
-const photos = JSON.parse(document.getElementById('ready-photos-data').textContent || '[]');
+const readyPhotoPayloads = JSON.parse(document.getElementById('ready-photos-data').textContent || '[]');
+const readyPhotoPayloadById = new Map(readyPhotoPayloads.map((payload) => [payload.id, payload]));
+const isStaff = {{ user.is_staff|yesno:"true,false" }};
+const reorderUrl = "{% url 'photo_reorder' album.pk %}";
+const csrfToken = "{{ csrf_token }}";
+let photos = [];
 let currentIndex = 0;
+let lightboxTrigger = null;
+let touchStartX = 0;
+let touchStartY = 0;
+let exifVisible = true;
+const preloaded = new Set();
+let draggedCard = null;
+let dragActive = false;
+let savedOrderSignature = "";
+let reorderSaveTimer = null;
+
+function refreshPhotoOrder(keepPhotoId = null) {
+  const activePhotoId = keepPhotoId || (photos[currentIndex] && photos[currentIndex].id) || null;
+  photos = Array.from(document.querySelectorAll('.photo-card[data-ready-photo="true"]'))
+    .map((card) => readyPhotoPayloadById.get(card.dataset.photoId))
+    .filter(Boolean);
+  const nextIndex = activePhotoId ? photos.findIndex((photo) => photo.id === activePhotoId) : -1;
+  if (nextIndex >= 0) {
+    currentIndex = nextIndex;
+  } else if (currentIndex >= photos.length) {
+    currentIndex = 0;
+  }
+}
+
+function getOrderSignature() {
+  return Array.from(document.querySelectorAll('.photo-card')).map((card) => card.dataset.photoId).join(',');
+}
+
+function setReorderStatus(message, color) {
+  const status = document.getElementById('reorder-status');
+  if (!status) return;
+  if (!message) {
+    status.style.display = 'none';
+    status.textContent = '';
+    return;
+  }
+  status.style.display = 'block';
+  status.style.color = color || '#888';
+  status.textContent = message;
+}
+
+async function savePhotoOrder() {
+  if (!isStaff) return;
+  const orderedPhotoIds = Array.from(document.querySelectorAll('.photo-card')).map((card) => card.dataset.photoId);
+  const nextSignature = orderedPhotoIds.join(',');
+  if (nextSignature === savedOrderSignature) {
+    return;
+  }
+
+  setReorderStatus('Saving order…', '#888');
+  try {
+    const response = await fetch(reorderUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({ ordered_photo_ids: orderedPhotoIds }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Unable to save photo order.');
+    }
+    savedOrderSignature = nextSignature;
+    setReorderStatus('Order saved', '#4ade80');
+    window.clearTimeout(reorderSaveTimer);
+    reorderSaveTimer = window.setTimeout(() => setReorderStatus('', '#888'), 1500);
+    refreshPhotoOrder();
+  } catch (error) {
+    setReorderStatus(error.message || 'Unable to save photo order.', '#fca5a5');
+  }
+}
+
+function handleCardClick(event, photoId) {
+  if (dragActive) return;
+  const photoIndex = photos.findIndex((photo) => photo.id === photoId);
+  if (photoIndex < 0) return;
+  openLightbox(photoIndex);
+}
+
+function beginDrag(event) {
+  if (!isStaff) return;
+  draggedCard = event.currentTarget;
+  dragActive = true;
+  draggedCard.classList.add('dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', draggedCard.dataset.photoId);
+}
+
+function handleDragOver(event) {
+  if (!isStaff || !draggedCard) return;
+  event.preventDefault();
+  const target = event.currentTarget;
+  if (target === draggedCard) return;
+
+  document.querySelectorAll('.photo-card.drag-over').forEach((card) => card.classList.remove('drag-over'));
+  target.classList.add('drag-over');
+
+  const rect = target.getBoundingClientRect();
+  const after = (event.clientY - rect.top) > rect.height / 2;
+  const parent = target.parentElement;
+  if (after) {
+    parent.insertBefore(draggedCard, target.nextSibling);
+  } else {
+    parent.insertBefore(draggedCard, target);
+  }
+}
+
+function handleDrop(event) {
+  if (!isStaff) return;
+  event.preventDefault();
+  document.querySelectorAll('.photo-card.drag-over').forEach((card) => card.classList.remove('drag-over'));
+}
+
+function endDrag() {
+  if (!isStaff || !draggedCard) return;
+  draggedCard.classList.remove('dragging');
+  document.querySelectorAll('.photo-card.drag-over').forEach((card) => card.classList.remove('drag-over'));
+  const movedPhotoId = draggedCard.dataset.photoId;
+  draggedCard = null;
+  window.setTimeout(() => {
+    dragActive = false;
+    refreshPhotoOrder(movedPhotoId);
+    savePhotoOrder();
+  }, 0);
+}
+
+function applyExifVisibility() {
+  const shell = document.getElementById('lightbox-shell');
+  const btn = document.getElementById('lb-exif-toggle');
+  if (exifVisible) {
+    shell.classList.remove('exif-collapsed');
+    btn.textContent = '◀ EXIF';
+    btn.setAttribute('aria-label', 'Hide EXIF panel');
+  } else {
+    shell.classList.add('exif-collapsed');
+    btn.textContent = 'EXIF ▶';
+    btn.setAttribute('aria-label', 'Show EXIF panel');
+  }
+}
+
+function toggleExif() {
+  exifVisible = !exifVisible;
+  try { localStorage.setItem('lb-exif-visible', exifVisible ? '1' : '0'); } catch {}
+  applyExifVisibility();
+}
 
 function openLightbox(i) {
+  lightboxTrigger = document.activeElement;
   currentIndex = i;
-  document.getElementById('lightbox').style.display = 'block';
+  try { exifVisible = localStorage.getItem('lb-exif-visible') !== '0'; } catch {}
+  applyExifVisibility();
+  const lb = document.getElementById('lightbox');
+  lb.style.display = 'block';
   document.body.style.overflow = 'hidden';
   showPhoto();
+  lb.focus();
 }
 
 function closeLightbox() {
   document.getElementById('lightbox').style.display = 'none';
   document.body.style.overflow = '';
   history.replaceState(null, '', location.pathname + location.search);
+  if (lightboxTrigger) {
+    lightboxTrigger.focus();
+    lightboxTrigger = null;
+  }
 }
 
 function showPhoto() {
   const p = photos[currentIndex];
-  document.getElementById('lb-img').src = p.url;
+  if (!p) return;
+  const img = document.getElementById('lb-img');
+  img.src = p.url;
+  img.alt = p.caption || ('Photo ' + (currentIndex + 1) + ' of ' + photos.length);
+  if (p.url_small && p.url_medium) {
+    img.srcset = p.url_small + ' 800w, ' + p.url_medium + ' 1200w, ' + p.url + ' 1920w';
+    img.sizes = '(max-width: 640px) 100vw, calc(100vw - 360px)';
+  } else {
+    img.srcset = '';
+    img.sizes = '';
+  }
   document.getElementById('lb-caption').textContent = p.caption;
   document.getElementById('lb-counter').textContent = (currentIndex + 1) + ' / ' + photos.length;
   renderExif(p.exif || []);
-  history.replaceState(null, '', '#photo-' + currentIndex);
+  history.replaceState(null, '', '#photo-' + p.id);
+  preloadAdjacentPhotos();
+}
+
+function preloadAdjacentPhotos() {
+  if (photos.length < 2) return;
+  const prev = (currentIndex - 1 + photos.length) % photos.length;
+  const next = (currentIndex + 1) % photos.length;
+  for (const i of [prev, next]) {
+    const p = photos[i];
+    if (preloaded.has(p.url)) continue;
+    preloaded.add(p.url);
+    if (p.url_small && p.url_medium) {
+      // Use <link rel="preload" imagesrcset> so the browser fetches the same
+      // variant it will pick for the <img srcset>, not always the full-size file.
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.setAttribute('imagesrcset', p.url_small + ' 800w, ' + p.url_medium + ' 1200w, ' + p.url + ' 1920w');
+      link.setAttribute('imagesizes', '(max-width: 640px) 100vw, calc(100vw - 360px)');
+      document.head.appendChild(link);
+    } else {
+      new Image().src = p.url;
+    }
+  }
+}
+
+async function copyPhotoLink() {
+  const p = photos[currentIndex];
+  if (!p) return;
+  const url = location.origin + location.pathname + '#photo-' + p.id;
+  const btn = document.getElementById('lb-copy-link');
+  const succeed = () => {
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 2000); }
+  };
+  // Modern clipboard API (requires HTTPS or localhost)
+  if (navigator.clipboard) {
+    try { await navigator.clipboard.writeText(url); succeed(); return; } catch {}
+  }
+  // Legacy fallback (works over plain HTTP)
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    succeed();
+  } catch {
+    window.prompt('Copy this link:', url);
+  }
 }
 
 function renderExif(items) {
@@ -130,11 +459,47 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowLeft') { currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto(); }
 });
 
-// Restore lightbox from URL hash on page load (e.g. after a refresh)
-const hashMatch = location.hash.match(/^#photo-(\d+)$/);
+refreshPhotoOrder();
+savedOrderSignature = getOrderSignature();
+
+// Touch swipe for mobile navigation
+(function() {
+  const lb = document.getElementById('lightbox');
+  lb.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  lb.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      currentIndex = dx < 0
+        ? (currentIndex + 1) % photos.length
+        : (currentIndex - 1 + photos.length) % photos.length;
+      showPhoto();
+    }
+  }, { passive: true });
+  // Focus trap: keep Tab cycling within the lightbox buttons
+  lb.addEventListener('keydown', function(e) {
+    if (e.key !== 'Tab') return;
+    const focusable = Array.from(lb.querySelectorAll('button'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+})();
+
+// Restore lightbox from URL hash on page load — uses stable photo UUID
+const hashMatch = location.hash.match(/^#photo-([0-9a-f-]+)$/);
 if (hashMatch) {
-  const i = parseInt(hashMatch[1], 10);
-  if (i >= 0 && i < photos.length) openLightbox(i);
+  const photoId = hashMatch[1];
+  const i = photos.findIndex((p) => p.id === photoId);
+  if (i >= 0) openLightbox(i);
 }
 </script>
 {% else %}

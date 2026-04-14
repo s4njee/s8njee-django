@@ -1,192 +1,174 @@
 # To Do
 
-This backlog is based on the current repo state as of March 20, 2026.
-
 Assumed scope for "feature complete":
 - A personal site with a public blog and public photo gallery
 - One owner/admin, not a multi-user platform
 - Reliable deployment, safe content management, good reader experience, and basic SEO/accessibility
 - Advanced community, commerce, AI, and platform ideas are intentionally moved to [`FutureResearchNeeded.md`](FutureResearchNeeded.md)
 
-## P0: Decide the Real Architecture
+---
+
+## Completed
+
+### Architecture
 
 - [x] Pick one architecture and remove the duplicate path.
-  Right now the repo has:
-  - `blog/`, which already serves posts and photo albums together
-  - `photos/`, which is a second Django app with overlapping album code
-  - `docker-compose.yml` and `nginx/nginx.conf`, which only route traffic to the `blog` container
-  The first launch task is deciding whether this site is:
-  - one Django app with blog at `/` and photos at `/photos/` (Recommended: least operational overhead on a single server, shared templates and admin), or
-  - two separately deployed services on `blog.s8njee.com` and `photos.s8njee.com` (Requires separate DBs/auth or shared SSO, and separate static asset pipelines).
 
+  A. Chose one Django app with blog at `/` and photos at `/photos/`.
 
-A. I choose one Django app with blog at `/` and photos at `/photos/` (Recommended: least operational overhead on a single server, shared templates and admin)
+- [x] Align `README.md`, `docker-compose.yml`, nginx, env files, and navigation with the chosen architecture.
 
+  A. Done March 2026. Repo documents and deploys a single Django site; nginx is templated for one hostname.
 
-- [x] Align [`../README.md`](../README.md), `docker-compose.yml`, nginx, env files, and navigation with the chosen architecture.
+- [x] Delete or archive the unused implementation.
 
-A. Done on March 23, 2026. The repo now documents and deploys a single Django site with blog at `/` and photos at `/photos/`, and nginx is templated for one hostname instead of two separate public services.
+  A. Done March 2026. Standalone `photos/` service archived to `archive/photos-standalone-app/`.
 
-- [x] Delete or archive the unused implementation after the architecture decision so future work only happens in one place.
-
-A. Done on March 23, 2026. The standalone `photos/` service was archived to `archive/photos-standalone-app/` so active development stays in `blog/`.
-
-## P0: Security And Repo Hygiene
-
-- [ ] Remove committed secrets from the repo and rotate them.
-  The repo currently contains environment files with live-looking credentials. Treat all committed secrets as compromised.
-
-  A. In progress on March 23, 2026. The committed env files were removed from the repo and replaced with example files plus ignore rules. Remaining manual follow-up: rotate every previously committed credential in AWS, PostgreSQL, and any deployed host before the next release.
+### Repo Hygiene
 
 - [x] Add a root `.gitignore` and `.dockerignore`.
-  Ignore at least:
-  - `.env`
-  - `.venv/`
-  - `staticfiles/`
-  - `media/`
-  - `.DS_Store`
-  - database dumps and other local-only artifacts
 
-  A. Done on March 23, 2026.
+  A. Done March 2026.
 
-- [x] Replace hardcoded or checked-in runtime config with documented environment variables and example files such as `.env.example`.
+- [x] Replace hardcoded or checked-in runtime config with documented environment variables and example files.
 
-A. Done on March 23, 2026. Django now reads documented env files, blank env values fall back cleanly for local SQLite development, and example files were added for Compose, Django, and PostgreSQL config.
+  A. Done March 2026. Django reads documented env files; blank values fall back cleanly for local SQLite dev.
 
 - [x] Add a deployment checklist for SSL, DB credentials, media storage, migrations, static collection, and admin bootstrap.
 
-A. Done on March 23, 2026. See [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.md).
+  A. Done March 2026. See [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.md).
 
-## P0: Make Deployment Actually Reproducible
-
-- [ ] Ensure the chosen production topology works from a clean machine without manual code edits.
+### Deployment
 
 - [x] Move `s8njee` off the shared Netcup PostgreSQL service and onto its own dedicated PostgreSQL 18 instance.
-  Reason:
-  - `blog.s8njee.com` is currently pointed at `postgres.default.svc.cluster.local`, which is a shared database service used by another app.
-  - This is now a proven outage risk. The blog should have its own database service, credentials, and PVC.
 
-  Tomorrow deployment checklist:
-  - Create a dedicated PostgreSQL workload for the blog in the `s8njee-web` namespace, ideally as a `StatefulSet` plus a `ClusterIP` service such as `s8njee-postgres`.
-  - Use PostgreSQL `18.x` for the new instance. Pin a specific `18.x` image tag instead of `latest` so future deploys stay reproducible.
-  - Give the new database its own persistent volume claim and do not reuse the shared `default/postgres` PVC or service.
-  - Generate fresh database credentials for `s8njee` only, then update `k8s/overlays/netcup/sealed-secret.yaml` with the new sealed values.
-  - Update `k8s/overlays/netcup/configmap.yaml` so `DB_HOST` points to the dedicated service, for example `s8njee-postgres.s8njee-web.svc.cluster.local`.
-  - If the new manifest uses direct PostgreSQL bootstrap env vars, include `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in addition to the app-facing `DB_*` values.
-  - Restore the newest backup, not the older local dump. The latest known backup source is `s3://s8njee-photoblog/backups/postgres/netcup/s8njee/latest.json`, which currently points to `backups/postgres/netcup/s8njee/20260401T070007Z-s8njee-daf473e99218.sql.gz`.
-  - Prefer restoring with a PostgreSQL 18 client. If the restore target rejects dump header lines like `SET transaction_timeout = 0;` or psql meta-commands such as `\\restrict`, either use a matching/newer client or strip those lines before replaying the dump.
-  - Add the same kind of DB wait step used in the `freya` overlay so the Django app does not start before the dedicated database is ready.
-  - After cutover, verify:
-    - `kubectl logs -n s8njee-web deploy/s8njee-web --tail=200`
-    - `curl -I https://blog.s8njee.com`
-    - `/` returns `200`
-    - `manage.py migrate` succeeds
-    - expected row counts exist in `posts_post`, `albums_album`, and `albums_photo`
-  - Confirm the backup CronJob is now dumping the dedicated `s8njee` database instead of the shared `default/postgres` service.
-  - After the dedicated DB is confirmed healthy, remove the temporary dependency on `postgres.default.svc.cluster.local` from the Netcup overlay docs and config.
+  A. Done. Dedicated PostgreSQL 18 StatefulSet created in the `s8njee-web` namespace with its own PVC and sealed credentials.
+
+- [x] Document Netcup migration staging workflow.
+
+  A. Done April 2026. `deploy/netcup/migrations/` is the staging area for Django migrations before each Netcup rollout. `DEPLOY.md` documents the copy-stage-verify-clear process and the manual `manage.py migrate` escape hatch.
 
 - [x] Add one canonical startup path for local development and one for production.
-  - Define how and when `manage.py migrate` and `manage.py collectstatic` run during a production release (e.g., via an init container in Docker or deployment script).
-  - Clarify the frontend asset pipeline (are we using Webpack/Tailwind, or just vanilla CSS?).
+
+  A. Done. `start.sh` runs migrations, backfills, collectstatic, then launches uvicorn.
 
 - [x] Verify media and static handling in both local filesystem mode and S3 mode.
 
-- [x] Add backup and restore instructions for:
-  - PostgreSQL
-  - uploaded media / S3 bucket
+  A. Done.
 
-- [x] Add basic observability for launch:
-  - structured logs
-  - error reporting
-  - healthcheck / smoke-check steps
+- [x] Add backup and restore instructions for PostgreSQL and uploaded media / S3 bucket.
 
-## P1: Finish The Core Blog Feature Set
+  A. Done.
+
+- [x] Add basic observability: structured logs, error reporting, healthcheck / smoke-check steps.
+
+  A. Done.
+
+### Photo Gallery
+
+- [x] Add async photo processing pipeline with status polling.
+
+  A. Done April 2026. `PhotoStatus` state machine (`pending → processing → ready / failed`). Celery task `process_photo` handles RAW/HEIC → AVIF conversion via Pillow + pillow-heif, thumbnail generation, EXIF extraction, and 1920px downscale. Upload endpoint returns 202; client polls `photo_status` until ready. RAW formats supported: NEF, CR2, CR3, DNG, ARW, ORF, RAF, RW2. EXIF stored as JSON and displayed in the lightbox sidebar.
+
+- [x] Add album cover selection instead of relying on the first related photo.
+
+  A. Done April 2026. `Album.cover_photo` ForeignKey (migration 0006). `album_set_cover_photo` view lets staff pick any ready photo. `cover_photo_for_display()` falls back to the first ready photo when none is set.
+
+- [x] Add album and photo management beyond "create + upload".
+
+  A. Done April 2026. Edit/delete album (`album_edit`, `album_delete`). Edit caption or replace image (`photo_edit`). Delete photo with file cleanup (`photo_delete`). Drag-to-reorder with `photo_reorder` API. `Photo.delete_files()` cleans up all storage files. All actions are `@staff_member_required`.
+
+- [x] Add per-photo metadata that can be edited cleanly.
+
+  A. Done April 2026. Caption editable via `photo_edit`. Sort order managed via drag-and-drop, persisted via `photo_reorder` API (migration 0005). Note: dedicated alt text field not yet added; lightbox derives alt from caption.
+
+- [x] Make the lightbox fully keyboard- and touch-friendly.
+
+  A. Done April 2026. `role="dialog"`, `aria-modal`, `aria-label`, `tabindex="-1"` on the container. Close `<div>` replaced with a `<button>` with `aria-label`. Focus moves into the dialog on open and returns to the triggering card on close. Tab/Shift+Tab trapped within the lightbox buttons. Touch swipe (≥40px horizontal) navigates photos via passive listeners. `@media (max-width: 640px)` stacks the EXIF sidebar below the image.
+
+- [x] Add dedicated photo permalinks / shareable deep-link strategy.
+
+  A. Done April 2026. Lightbox writes `#photo-{uuid}` to the URL hash (was positional `#photo-{index}`, which broke after reordering). Hash restore on page load uses UUID lookup. "Copy link" button in the sidebar copies the full URL to clipboard with `execCommand` and `window.prompt` fallbacks. Server-side route `GET /albums/{album_pk}/photos/{photo_pk}/` redirects to `album_detail#photo-{uuid}`.
+
+- [x] Enable parallel uploads.
+
+  A. Done April 2026. `startUpload` runs up to 3 concurrent uploads via a shared-index worker pool. Each slot calls `await uploadOne(item)` and pulls the next pending item when done. Per-file progress and status update independently. Retry allowed while the batch is active.
+
+- [x] Preload adjacent images in the lightbox.
+
+  A. Done April 2026. `preloadAdjacentPhotos()` called at the end of every `showPhoto()`. Uses `<link rel="preload" imagesrcset imagesizes>` so the browser prefetches the same variant it will select for the `<img srcset>`, not always the full-size file. A module-level `preloaded` Set prevents duplicate requests.
+
+- [x] Add image variants with responsive `srcset`.
+
+  A. Done April 2026. `Photo` gains `image_medium` (1200px) and `image_small` (800px) fields (migration 0007). Celery task generates both variants from the full-size image bytes after processing. View includes `url_medium` and `url_small` in the JSON payload. Lightbox sets `srcset` and `sizes` on every `showPhoto()` call; falls back gracefully to `src`-only for photos without variants. Run `manage.py backfill_image_variants` for existing photos.
+
+- [x] Align EXIF formatting with photography conventions.
+
+  A. Done April 2026. `50mm` not `50 mm`, `1/250s` not `1/250 s`. `f/2.8` was already correct.
+
+- [x] Make the EXIF sidebar usable on mobile.
+
+  A. Done April 2026. `@media (max-width: 640px)` stacks the sidebar below the image. Desktop collapsibility (toggle button) is a separate open item.
+
+---
+
+## Open
+
+### P0: Security
+
+- [ ] Remove committed secrets from the repo and rotate them.
+  Env files were removed and replaced with examples, but every previously committed credential (AWS, PostgreSQL, deployed host) still needs to be rotated before the next release.
+
+### P1: Blog
 
 - [ ] Separate `published_at` from `created_at`.
   Posts should support draft creation before publication and preserve a clean publication date.
 
-  
-
 - [ ] Add a richer post authoring format.
-  Current posts are plain text in a `TextField`. Choose and implement one of:
-  - Markdown with safe rendering (e.g., `python-markdown` + `bleach`)
-  - Rich text via the admin (e.g., `django-ckeditor` or `django-tinymce`)
-  - **Note:** Decide how inline images within blog posts will be handled (will they be uploaded to S3 natively via the rich text editor, or linked from the `albums` app?).
+  Current posts are plain text in a `TextField`. Choose one:
+  - Markdown with safe rendering (`python-markdown` + `bleach`)
+  - Rich text via the admin (`django-ckeditor` or `django-tinymce`)
+  - Decide how inline images are handled (S3 via editor, or linked from the albums app).
 
 - [ ] Add post metadata needed for a finished reading experience:
   - excerpt / summary
-  - hero image
-  - hero image alt text
+  - hero image + alt text
   - optional subtitle
 
 - [ ] Add previous / next post navigation on post detail pages.
 
 - [ ] Improve archive UX.
-  The month archive exists, but it should have an explicit page heading, empty-state handling, and pagination parity with the main index.
+  The month archive needs an explicit heading, empty-state handling, and pagination parity with the main index.
 
 - [ ] Add friendly 404 and 500 pages that match the site layout.
 
-- [ ] Add an About page and a clear landing identity for the site owner.
-  A personal blog/photo site usually feels incomplete without at least one stable profile/about destination.
+- [ ] Add an About page and a clear landing identity.
 
-## P1: Finish The Core Photo Gallery Feature Set
+### P1: Photo Gallery
 
 - [ ] Add human-readable slugs for albums.
-  UUID-only URLs work technically, but they are not share-friendly or memorable.
+  UUID-only URLs are not share-friendly or memorable.
 
-- [ ] Add album cover selection instead of relying on the first related photo.
+- [ ] Improve the upload flow.
+  - Captions at upload time: not yet implemented — captions are added after upload via photo_edit.
+  - Bulk upload UI exists with async per-file progress; cancellation is a separate open item below.
 
-- [ ] Add per-photo metadata that can be edited cleanly:
-  - caption
-  - alt text
-  - sort order within album
-
-- [ ] Add album and photo management beyond "create + upload".
-  The site still needs a safe way to:
-  - edit albums
-  - rename albums
-  - delete albums
-  - delete or replace photos
-  - reorder photos
-
-- [ ] Improve the upload flow to capture captions and validation at upload time.
-  - Implement bulk upload functionality for adding multiple photos simultaneously.
-  - Add client-side and server-side validation for file types and size limits.
-
-- [ ] Make the lightbox fully keyboard- and touch-friendly.
-  It already works, but it should be treated as a complete feature only after accessibility and mobile interaction are verified.
-
-- [ ] Add dedicated photo permalinks or a shareable deep-link strategy.
-  Albums are viewable, but individual photos do not yet have stable, direct URLs.
-
-## P1: Complete The Reader-Facing Cross-Site Experience
+### P1: Cross-Site Experience
 
 - [ ] Make navigation consistent everywhere.
-  Blog and photo templates should agree on:
-  - URL strategy
-  - nav labels
-  - canonical links between sections
+  Blog and photo templates should agree on URL strategy, nav labels, and canonical links between sections.
 
 - [ ] Unify the visual system.
   The current templates are clean but still feel like two adjacent layouts rather than one finished site.
 
 - [ ] Add footer content with copyright, contact/about links, and feed/sitemap access.
 
-- [ ] Verify responsive behavior across:
-  - blog list
-  - blog detail
-  - album grid
-  - album detail lightbox
-  - upload flow
+- [ ] Verify responsive behavior across blog list, blog detail, album grid, album detail lightbox, and upload flow.
 
-## P1: SEO, Discovery, And Sharing
+### P1: SEO, Discovery, And Sharing
 
 - [ ] Add page-level SEO metadata for posts, albums, and the homepage:
-  - title templates
-  - meta description
-  - Open Graph tags
-  - social preview images
-  - canonical URLs
+  - title templates, meta description, Open Graph tags, social preview images, canonical URLs
 
 - [ ] Add `sitemap.xml`.
 
@@ -194,125 +176,79 @@ A. Done on March 23, 2026. See [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.
 
 - [ ] Add an RSS or Atom feed for blog posts.
 
-- [ ] Decide whether albums should appear in the sitemap and whether private/draft content must be excluded.
+- [ ] Decide whether albums appear in the sitemap and whether draft content must be excluded.
 
-## P1: Accessibility And Performance
+### P1: Accessibility And Performance
 
-- [ ] Audit all images for meaningful `alt` behavior.
-  Some gallery thumbnails are currently empty-alt or caption-derived.
+- [ ] Audit all images for meaningful `alt` text.
+  Gallery thumbnails are currently empty-alt or caption-derived; a dedicated alt text field on `Photo` is the right fix.
 
 - [ ] Ensure keyboard focus states and form controls are clearly visible.
 
-- [ ] Improve image delivery with responsive sizes and modern formats where practical.
-  - Integrate a CDN (like Cloudflare or AWS CloudFront) to cache heavy static/media files.
-  - Implement caching headers (`Cache-Control`) to leverage browser caching.
+- [ ] Integrate a CDN and set `Cache-Control` headers for media files.
 
-- [ ] Verify thumbnail generation, large-image handling, and upload limits against real camera-sized files.
-  - Decide on a thumbnailing approach: generate on upload (using signals) or on the fly and cache (using libraries like `sorl-thumbnail` or `django-imagekit`). Generating 5-10MB full-resolution images dynamically on every page load will cause severe performance issues.
-  - Consider stripping EXIF data during upload processing for privacy and size reduction.
+- [ ] Add lazy-loading and pagination or progressive loading for large albums.
 
-- [ ] Add lazy-loading and pagination or progressive loading where album size could become large.
-
-## P2: Photo Gallery — Professional Polish
-
-These items were identified in an April 2026 review of the photo side of the site against professional photography portfolio standards.
+### P2: Photo Gallery Polish
 
 - [ ] Preserve original files after processing (or make it opt-in).
-  Currently the original RAW/HEIC is deleted once the AVIF is generated. There is no way to retrieve the source file later. At minimum, add a `keep_original` flag or an admin action to download the processed image.
-
-- [ ] Enable parallel uploads.
-  The upload queue processes one file at a time. For albums of 20+ photos this is noticeably slow. Upload all files concurrently and show per-file progress individually.
+  The original RAW/HEIC is currently deleted after AVIF generation. Add a `keep_original` flag or an admin download action.
 
 - [ ] Add upload cancellation.
-  Once a file starts uploading there is no way to abort it. Standard for any file upload UI.
+  Once a file starts uploading there is no way to abort it.
 
-- [ ] Make the EXIF sidebar collapsible.
-  The 280px fixed panel is always visible even when there is no EXIF data. It should be togglable, and on mobile it must collapse below the image rather than sitting beside it.
+- [x] Add EXIF sidebar desktop toggle.
 
-- [ ] Preload adjacent images in the lightbox.
-  Navigating to the next or previous photo fetches it synchronously. Prefetch the immediate neighbours while the current photo is open.
+  A. Done April 2026. `◀ EXIF` / `EXIF ▶` button positioned top-left of the lightbox (mirrors the close button at top-right). Clicking toggles a `.exif-collapsed` class on `#lightbox-shell`, which collapses the grid column and hides the `<aside>`. The `#lb-img` max-width is CSS-driven so it expands to fill the freed space without any inline style juggling. Preference saved to `localStorage` and restored on each `openLightbox()`. Button hidden on mobile via `@media (max-width: 640px)` since the sidebar already stacks below the image there.
 
 - [ ] Fix the GPS "Available" indicator.
-  Showing "GPS: Available" with no coordinates or map looks like an unfinished placeholder. Either display the coordinates (and optionally a small map embed), or omit the field entirely when the data is not surfaced.
+  Either display the coordinates (and optionally a small map), or omit the field when no coordinates are surfaced.
 
-- [ ] Expand EXIF display fields and fix formatting.
-  Only ~12 fields are shown. Professional sites (Flickr, 500px) also surface white balance, metering mode, flash, color space, and lens ID. Also align formatting with photography conventions: `50mm` not `50 mm`, `1/250s` not `1/250 s`, `f/2.8` is correct and can stay.
-
-- [ ] Add image variants with responsive `srcset`.
-  All images are served at 1920px max regardless of the viewer's screen. Generate small (800px), medium (1200px), and full (1920px) variants at upload time and use `srcset` so mobile users don't download full-resolution files.
+- [ ] Expand EXIF display fields.
+  Professional sites (Flickr, 500px) also surface white balance, metering mode, flash, color space, and lens ID.
 
 - [ ] Add watermark support.
-  Standard for photographers sharing work publicly. Implement a configurable overlay (text or logo) applied during image processing, with a flag to enable/disable per album.
+  Configurable text or logo overlay applied during image processing, with a per-album enable flag.
 
 - [ ] Add tagging and cross-album collections.
-  Albums are the only organisational unit. Add tags to photos so content can be browsed across albums (e.g. "portraits", "landscape"), and optionally curate highlight collections independent of upload albums.
+  Add tags to photos so content can be browsed across albums.
 
 - [ ] Show photo count on the album list page.
-  Users cannot tell how large an album is without opening it.
 
-## P2: Content Management Workflow
+### P2: Content Management
 
-- [ ] Decide whether Django admin is the primary authoring interface or whether the site should expose first-party edit screens.
+- [ ] Decide whether Django admin is the primary authoring interface or whether the site needs first-party edit screens.
 
-- [ ] If admin stays primary, polish it:
-  - better list filters
-  - album/photo inline usability
-  - bulk actions
-  - clearer publish workflow
+- [ ] If admin stays primary: better list filters, album/photo inline usability, bulk actions, clearer publish workflow.
 
-- [ ] Add explicit draft / published / hidden states where needed for both posts and albums.
+- [ ] Add explicit draft / published / hidden states for both posts and albums.
 
 - [ ] Document the editorial workflow for creating, previewing, publishing, and correcting content.
 
-## P2: Testing And QA
+### P2: Testing And QA
 
-- [ ] Add automated tests for the blog:
-  - post list
-  - post detail
-  - archive filtering
-  - published vs draft visibility
+- [ ] Add automated tests for the blog: post list, post detail, archive filtering, published vs draft visibility.
 
-- [ ] Add automated tests for the gallery:
-  - album list/detail
-  - auth-gated create/upload actions
-  - thumbnail generation
-  - upload endpoint validation
+- [ ] Add automated tests for the gallery: album list/detail, auth-gated actions, thumbnail generation, upload endpoint validation.
 
 - [ ] Add storage-related tests for local media and S3-backed media.
 
 - [ ] Add one smoke test for the deployed site routes.
 
-- [ ] Replace the current empty test suites in both apps with meaningful coverage before expanding features further.
+### P2: Infrastructure & Security
 
-## P2: Missing Infrastructure & Security Foundations
+- [ ] Add basic rate limiting on `/admin/` login and upload endpoints.
 
-- [ ] Add basic rate limiting.
-  Protect the `/admin/` login and any upload endpoints against brute-force attacks or abuse (e.g., via `django-ratelimit` or nginx `limit_req`).
+- [ ] Automate database backups via a scheduled CronJob dumping to S3.
 
-- [ ] Automated Backups Strategy.
-  While backup scripts were mentioned in P0, ensure there is an automated scheduled task (CRON job) taking routine database dumps (`pg_dump`) and securely offloading them to an offsite location or S3 bucket.
+- [ ] Decide on a caching strategy (Redis/Memcached for template fragments or query caching).
 
-- [ ] Caching Strategy.
-  A photo gallery requires heavy caching. Decide if you'll use Django's `cache` framework (with Redis/Memcached) for template fragments or database query caching, as rendering huge galleries dynamically can bottleneck the server.
+- [ ] Configure SMTP for error-reporting emails and password resets.
 
-- [ ] Email Sending & Contact Functionality.
-  If the personal site needs error reporting emails (like Django's `ADMINS` via 500 errors) or password resets, configure an SMTP provider (SendGrid, Mailgun) and valid return paths.
+### P2: Content
 
-## P2: Seed Data And Content Polish
+- [ ] Remove placeholder fixture content or replace with intentional starter content.
 
-- [ ] Remove placeholder fixture content or replace it with intentional starter content.
+- [ ] Decide whether fixtures run at all on production startup.
 
-- [ ] Decide whether fixtures should exist at all in production startup.
-  Loading demo content automatically is useful for a prototype, but risky for a real site.
-
-- [ ] Add a small set of polished launch-ready content:
-  - at least a few real posts
-  - a few real albums
-  - captions / descriptions that demonstrate the final design
-
-## Suggested Execution Order
-
-- [ ] 1. Resolve architecture, secrets, and deployment mismatch first.
-- [ ] 2. Finish blog and gallery content models next.
-- [ ] 3. Add missing reader-facing features, SEO, and accessibility.
-- [ ] 4. Lock in authoring workflow and tests before calling the site complete.
+- [ ] Add polished launch-ready content: real posts, real albums with captions.

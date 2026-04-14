@@ -14,5 +14,6 @@ if uv run python manage.py shell -c "from posts.models import Post; from albums.
 else
   uv run python manage.py loaddata fixtures/seed_content.json
 fi
+uv run python manage.py backfill_photo_sort_order
 uv run python manage.py collectstatic --noinput
 exec uv run uvicorn blog.asgi:application --host 0.0.0.0 --port 8000 --workers 2 --lifespan off

@@ -1,3 +1,5 @@
+import os
+import json
 import io
 import shutil
 import tempfile
@@ -135,3 +137,149 @@ class PhotoUploadAsyncTests(TestCase):
         self.assertContains(album_response, "EXIF")
         self.assertContains(album_response, "Camera Make")
         self.assertContains(album_response, "NIKON D600")
+
+    def test_nonstaff_cannot_open_album_creation(self):
+        regular_user = get_user_model().objects.create_user(
+            username="album-viewer",
+            password="testpass123",
+        )
+        self.client.force_login(regular_user)
+
+        response = self.client.get(reverse("album_create"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+    def test_staff_can_edit_album_metadata(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("album_edit", kwargs={"pk": self.album.pk}),
+            {"title": "Renamed Album", "description": "Updated description"},
+        )
+
+        self.assertRedirects(response, reverse("album_detail", kwargs={"pk": self.album.pk}))
+        self.album.refresh_from_db()
+        self.assertEqual(self.album.title, "Renamed Album")
+        self.assertEqual(self.album.description, "Updated description")
+
+    def test_staff_can_choose_album_cover_photo(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            first_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("cover-a.png")},
+            )
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            second_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("cover-b.png")},
+            )
+
+        first_photo = Photo.objects.get(pk=first_response.json()["id"])
+        second_photo = Photo.objects.get(pk=second_response.json()["id"])
+
+        response = self.client.post(
+            reverse("album_edit", kwargs={"pk": self.album.pk}),
+            {
+                "title": self.album.title,
+                "description": self.album.description,
+                "cover_photo": str(second_photo.pk),
+            },
+        )
+
+        self.assertRedirects(response, reverse("album_detail", kwargs={"pk": self.album.pk}))
+        self.album.refresh_from_db()
+        self.assertEqual(self.album.cover_photo_id, second_photo.pk)
+
+        list_response = self.client.get(reverse("album_list"))
+        self.assertContains(list_response, second_photo.thumbnail.url)
+        self.assertNotContains(list_response, first_photo.thumbnail.url)
+
+    def test_staff_can_delete_album_and_album_photos(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            upload_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("delete-me.png")},
+            )
+
+        photo = Photo.objects.get(pk=upload_response.json()["id"])
+        image_path = photo.image.name
+        thumbnail_path = photo.thumbnail.name
+
+        response = self.client.post(
+            reverse("album_delete", kwargs={"pk": self.album.pk}),
+            {"confirm": "on"},
+        )
+
+        self.assertRedirects(response, reverse("album_list"))
+        self.assertFalse(Album.objects.filter(pk=self.album.pk).exists())
+        self.assertFalse(Photo.objects.filter(pk=photo.pk).exists())
+        self.assertFalse(os.path.exists(os.path.join(self.media_root, image_path)))
+        self.assertFalse(os.path.exists(os.path.join(self.media_root, thumbnail_path)))
+
+    def test_staff_can_replace_photo_image_and_caption(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            upload_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("original.png", content_type="image/png")},
+            )
+
+        photo = Photo.objects.get(pk=upload_response.json()["id"])
+        old_image = photo.image.name
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            response = self.client.post(
+                reverse(
+                    "photo_edit",
+                    kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk},
+                ),
+                {
+                    "caption": "Updated caption",
+                    "replace_image": self.make_image_upload("replacement.png"),
+                },
+            )
+
+        self.assertRedirects(response, reverse("album_detail", kwargs={"pk": self.album.pk}))
+        photo.refresh_from_db()
+        self.assertEqual(photo.caption, "Updated caption")
+        self.assertEqual(photo.status, PhotoStatus.READY)
+        self.assertFalse(photo.original.name)
+        self.assertFalse(os.path.exists(os.path.join(self.media_root, old_image)))
+        self.assertTrue(photo.thumbnail.name)
+        self.assertTrue(os.path.exists(os.path.join(self.media_root, photo.thumbnail.name)))
+
+    def test_staff_can_reorder_photos_with_drag_and_drop(self):
+        self.client.force_login(self.staff_user)
+
+        first = Photo.objects.create(album=self.album, caption="First", sort_order=0)
+        second = Photo.objects.create(album=self.album, caption="Second", sort_order=1)
+
+        album_response = self.client.get(reverse("album_detail", kwargs={"pk": self.album.pk}))
+        self.assertContains(album_response, 'draggable="true"', html=False)
+
+        response = self.client.post(
+            reverse("photo_reorder", kwargs={"album_pk": self.album.pk}),
+            data=json.dumps(
+                {
+                    "ordered_photo_ids": [
+                        str(second.pk),
+                        str(first.pk),
+                    ]
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["ok"], True)
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(first.sort_order, 1)
+        self.assertEqual(second.sort_order, 0)

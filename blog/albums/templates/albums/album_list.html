@@ -6,7 +6,7 @@
 <div class="grid">
   {% for album in albums %}
   <a href="{% url 'album_detail' album.pk %}" class="card" style="color:inherit">
-    {% with photo=album.photos.first %}
+    {% with photo=album.cover_photo_for_display %}
     {% if photo %}
       {% if photo.status == "ready" and photo.image %}
         {% if photo.thumbnail %}

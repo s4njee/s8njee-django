@@ -39,6 +39,25 @@ After the image is pushed:
 
 You normally do not need to edit `k8s/overlays/netcup/kustomization.yaml` for an app deploy. The checked-in image tag is only the Git baseline; Image Updater moves the live Netcup application after a newer registry tag exists.
 
+### Netcup Migration Queue
+
+Use `deploy/netcup/migrations/` as the staging area for Django migrations that still need to reach Netcup.
+
+- When you add a new migration under `blog/<app>/migrations/`, copy the same file into `deploy/netcup/migrations/<app>/` before you consider the change ready for Netcup.
+- Keep the staged copy in git until the Netcup rollout has applied it.
+- For the current album work, the staged migrations are:
+  - `deploy/netcup/migrations/albums/0005_alter_photo_options_photo_sort_order.py`
+  - `deploy/netcup/migrations/albums/0006_album_cover_photo.py`
+- When it is time to deploy to Netcup, make sure the staged migration folder matches the real app migrations, then ship the normal Netcup release as usual.
+- After the rollout, verify the pod logs show the new migrations being applied, then clear the staged copies once Netcup is up to date.
+
+If you need to force the migration step manually on Netcup, run:
+
+```bash
+kubectl --context=netcup exec -n s8njee-web deploy/s8njee-web -- \
+  sh -lc 'cd /app && DJANGO_SETTINGS_MODULE=blog.settings.production uv run python manage.py migrate --noinput'
+```
+
 ## Netcup First-Time Or Manual Apply
 
 The Argo CD application points at:

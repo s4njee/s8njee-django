@@ -4,7 +4,7 @@ from pathlib import Path
 from celery import shared_task
 from django.core.files.base import ContentFile
 
-from .image_processing import extract_exif_summary, make_thumbnail_from_image_file, process_uploaded_image
+from .image_processing import extract_exif_summary, make_image_variant, make_thumbnail_from_image_file, process_uploaded_image
 from .models import Photo, PhotoStatus
 
 logger = logging.getLogger(__name__)
@@ -35,12 +35,24 @@ def process_photo(self, photo_id: str):
         processed = process_uploaded_image(original_name, file_bytes)
         photo.image.save(processed.name, processed, save=False)
 
+        # Read the saved full-size image once; reuse bytes for all variants.
+        with photo.image.open("rb") as fh:
+            full_bytes = fh.read()
+        full_name = photo.image.name
+
+        for max_dim, suffix, attr in [
+            (1200, "1200", "image_medium"),
+            (800, "800", "image_small"),
+        ]:
+            variant_name, variant_bytes = make_image_variant(full_bytes, full_name, max_dim, str(photo.id), suffix)
+            getattr(photo, attr).save(variant_name, ContentFile(variant_bytes), save=False)
+
         thumb_name, thumb_bytes = make_thumbnail_from_image_file(photo.image, str(photo.id))
         photo.thumbnail.save(thumb_name, ContentFile(thumb_bytes), save=False)
 
         photo.status = PhotoStatus.READY
         photo.error = ""
-        photo.save(update_fields=["image", "thumbnail", "exif_data", "status", "error"])
+        photo.save(update_fields=["image", "image_medium", "image_small", "thumbnail", "exif_data", "status", "error"])
 
         # Delete the staging original from storage now that processing is complete.
         # This is especially important for large RAW files (NEF, CR2, etc.).

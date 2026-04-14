@@ -1,0 +1,30 @@
+{% extends "albums/base.html" %}
+{% block title %}{{ page_title|default:"Photo" }}{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem">{{ page_title|default:"Photo" }}</h1>
+<div style="max-width:640px">
+  {% if photo and photo.image %}
+  <div style="margin-bottom:1.5rem">
+    {% if photo.thumbnail %}
+      <img src="{{ photo.thumbnail.url }}" alt="{{ photo.caption }}" style="max-width:240px;border-radius:8px;border:1px solid #222">
+    {% else %}
+      <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="max-width:240px;border-radius:8px;border:1px solid #222">
+    {% endif %}
+    <div style="color:#888;font-size:.85rem;margin-top:.5rem">Current image</div>
+  </div>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="form-group">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<div style="color:#777;font-size:.8rem;margin-top:.35rem">{{ field.help_text }}</div>{% endif %}
+      {% if field.errors %}<div style="color:#fca5a5;font-size:.85rem;margin-top:.35rem">{{ field.errors|striptags }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn">{{ submit_label|default:"Save" }}</button>
+    {% if album and photo %}<a href="{% url 'album_detail' album.pk %}" class="btn" style="background:#333;margin-left:.5rem">Cancel</a>{% endif %}
+  </form>
+</div>
+{% endblock %}

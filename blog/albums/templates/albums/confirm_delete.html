@@ -1,0 +1,20 @@
+{% extends "albums/base.html" %}
+{% block title %}Delete {{ object_label|default:"item" }}{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:1rem">Delete {{ object_label|default:"item" }}</h1>
+<p style="color:#bbb;max-width:640px;margin-bottom:1.5rem">
+  Are you sure you want to delete {{ object }}? This action cannot be undone.
+</p>
+<form method="post" style="max-width:640px">
+  {% csrf_token %}
+  {% for field in form %}
+  <div class="form-group">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.errors %}<div style="color:#fca5a5;font-size:.85rem;margin-top:.35rem">{{ field.errors|striptags }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn" style="background:#b91c1c">Delete</button>
+  <a href="{{ back_url }}" class="btn" style="background:#333;margin-left:.5rem">Cancel</a>
+</form>
+{% endblock %}

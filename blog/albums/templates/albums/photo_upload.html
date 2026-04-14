@@ -104,6 +104,8 @@ function refreshDoneState() {
   document.getElementById("done-msg").style.display = allDone ? "block" : "none";
 }
 
+const CONCURRENCY = 3;
+
 async function startUpload() {
   if (uploading) return;
   uploading = true;
@@ -111,16 +113,28 @@ async function startUpload() {
   document.getElementById("start-btn").style.opacity = "0.5";
   document.getElementById("upload-area").style.display = "none";
 
-  let done = 0;
-  const total = queue.filter(q => q.status === "pending").length;
+  const pending = queue.filter(q => q.status === "pending");
+  const total = pending.length;
+  let completed = 0;
+  let slotIdx = 0;
 
-  for (const item of queue) {
-    if (item.status !== "pending") continue;
-    await uploadOne(item);
+  const updateProgress = () => {
+    document.getElementById("progress-text").textContent = completed + " / " + total + " uploaded";
+  };
+  updateProgress();
 
-    done++;
-    document.getElementById("progress-text").textContent = done + " / " + total + " complete";
-  }
+  // Each slot pulls the next item from the shared index until exhausted.
+  // JS is single-threaded so slotIdx++ is race-free across concurrent slots.
+  const runSlot = async () => {
+    while (slotIdx < pending.length) {
+      const item = pending[slotIdx++];
+      await uploadOne(item);
+      completed++;
+      updateProgress();
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, runSlot));
 
   uploading = false;
   document.getElementById("start-btn").disabled = false;
@@ -255,7 +269,7 @@ async function uploadOne(item) {
 
 function retryUpload(id) {
   const item = queue.find(q => q.id === id);
-  if (!item || uploading) return;
+  if (!item) return;
   item.status = "pending";
   item.error = null;
   const el = document.getElementById("item-" + item.id);
