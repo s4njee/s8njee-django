@@ -1,18 +1,17 @@
 {% extends "albums/base.html" %}
-{% block title %}Photos{% endblock %}
-{% block content %}
+{% block album_content %}
 <h3 style="margin-bottom:1.5rem">Albums</h3>
 {% if albums %}
 <div class="grid">
   {% for album in albums %}
-  <a href="{% url 'album_detail' album.pk %}" class="card" style="color:inherit">
+  <a href="{{ album.get_absolute_url }}" class="card" style="color:inherit">
     {% with photo=album.cover_photo_for_display %}
     {% if photo %}
       {% if photo.status == "ready" and photo.image %}
         {% if photo.thumbnail %}
-        <img src="{{ photo.thumbnail.url }}" alt="" loading="lazy">
+        <img src="{{ photo.thumbnail.url }}" alt="{{ photo.alt_text|default:'' }}" loading="lazy">
         {% else %}
-        <img src="{{ photo.image.url }}" alt="" loading="lazy">
+        <img src="{{ photo.image.url }}" alt="{{ photo.alt_text|default:'' }}" loading="lazy">
         {% endif %}
       {% else %}
         <div style="width:100%;aspect-ratio:1;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#666;font-size:.9rem;text-align:center;padding:1rem">

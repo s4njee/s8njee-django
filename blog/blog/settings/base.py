@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'posts',
     'albums',
     'storages',
+    'django.contrib.sitemaps',
 ]
 
 MIDDLEWARE = [

@@ -26,8 +26,11 @@ class AlbumListView(ListView):
     queryset = Album.objects.select_related("cover_photo").prefetch_related("photos")
 
 
-def album_detail(request, pk):
-    album = get_object_or_404(Album, pk=pk)
+def album_detail(request, pk=None, slug=None):
+    if slug:
+        album = get_object_or_404(Album, slug=slug)
+    else:
+        album = get_object_or_404(Album, pk=pk)
     photos = list(album.photos.all())
     ready_photos = [photo for photo in photos if photo.status == PhotoStatus.READY and photo.image]
     ready_index = 0

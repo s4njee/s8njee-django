@@ -1,6 +1,13 @@
 {% extends "albums/base.html" %}
-{% block title %}{{ album.title }}{% endblock %}
-{% block content %}
+{% block title %}{{ album.title }} | Photos{% endblock %}
+{% block meta_description %}{{ album.description|default:"A collection of photos by Sanjee." }}{% endblock %}
+
+{% block og_title %}{{ album.title }}{% endblock %}
+{% block og_description %}{{ album.description|default:"A collection of photos by Sanjee." }}{% endblock %}
+{% with cover=album.cover_photo_for_display %}
+  {% if cover %}{% block og_image %}{{ cover.image.url }}{% endblock %}{% endif %}
+{% endwith %}
+{% block album_content %}
 <style>
   .photo-card[data-ready-photo="true"] { cursor: pointer; }
   .photo-card.dragging { opacity: .55; }
@@ -64,9 +71,9 @@
       onclick="handleCardClick(event, '{{ photo.pk }}')"
     >
       {% if photo.thumbnail %}
-        <img src="{{ photo.thumbnail.url }}" alt="{{ photo.caption }}" loading="lazy">
+        <img src="{{ photo.thumbnail.url }}" alt="{{ photo.alt_text|default:photo.caption|default:'' }}" loading="lazy">
       {% else %}
-        <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" loading="lazy">
+        <img src="{{ photo.image.url }}" alt="{{ photo.alt_text|default:photo.caption|default:'' }}" loading="lazy">
       {% endif %}
       <div class="card-body">
         {% if user.is_staff %}

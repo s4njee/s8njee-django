@@ -49,9 +49,10 @@ class AlbumForm(forms.ModelForm):
 
     class Meta:
         model = Album
-        fields = ["title", "description", "cover_photo"]
+        fields = ["title", "slug", "description", "cover_photo"]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "Album title"}),
+            "slug": forms.TextInput(attrs={"placeholder": "album-slug"}),
             "description": forms.Textarea(
                 attrs={
                     "rows": 5,
@@ -95,9 +96,10 @@ class PhotoEditForm(forms.ModelForm):
 
     class Meta:
         model = Photo
-        fields = ["caption"]
+        fields = ["caption", "alt_text"]
         widgets = {
             "caption": forms.TextInput(attrs={"placeholder": "Add a caption"}),
+            "alt_text": forms.TextInput(attrs={"placeholder": "Describe image for SEO/accessibility"}),
         }
 
 

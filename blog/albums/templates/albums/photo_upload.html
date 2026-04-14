@@ -1,6 +1,6 @@
 {% extends "albums/base.html" %}
 {% block title %}Upload to {{ album.title }}{% endblock %}
-{% block content %}
+{% block album_content %}
 <h1 style="margin-bottom:1.5rem">Upload to "{{ album.title }}"</h1>
 
 <div id="upload-area" style="border:2px dashed #333;border-radius:8px;padding:3rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:1.5rem"
@@ -16,13 +16,13 @@
 
 <div id="controls" style="display:none;gap:1rem;align-items:center;margin-bottom:1.5rem">
   <button id="start-btn" class="btn" onclick="startUpload()">Upload <span id="file-count"></span> photos</button>
-  <button class="btn" style="background:#333" onclick="clearQueue()">Clear</button>
+  <button class="btn btn-secondary" onclick="clearQueue()">Clear</button>
   <span id="progress-text" style="color:#888;margin-left:1rem"></span>
 </div>
 
 <div id="done-msg" style="display:none">
   <p style="color:#4ade80;margin-bottom:1rem">✓ All photos uploaded!</p>
-  <a href="{% url 'album_detail' album.pk %}" class="btn">View Album</a>
+  <a href="{{ album.get_absolute_url }}" class="btn">View Album</a>
 </div>
 
 <script>

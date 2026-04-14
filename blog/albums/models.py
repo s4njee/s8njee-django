@@ -17,6 +17,7 @@ class PhotoStatus(models.TextChoices):
 class Album(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True, null=True, blank=True)
     description = models.TextField(blank=True)
     cover_photo = models.ForeignKey(
         "Photo",
@@ -33,6 +34,12 @@ class Album(models.Model):
 
     def __str__(self):
         return self.title
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        if self.slug:
+            return reverse("album_detail_slug", kwargs={"slug": self.slug})
+        return reverse("album_detail", kwargs={"pk": self.id})
 
     def cover_photo_for_display(self):
         cover = self.cover_photo
@@ -64,6 +71,7 @@ class Photo(models.Model):
     error = models.TextField(blank=True)
     caption = models.CharField(max_length=300, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    alt_text = models.CharField(max_length=300, blank=True, help_text="Meaningful description for screen readers and SEO.")
 
     class Meta:
         ordering = ["sort_order", "-uploaded_at"]

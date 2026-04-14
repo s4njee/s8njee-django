@@ -1,6 +1,31 @@
 {% extends "albums/base.html" %}
 {% block title %}{{ page_title|default:"Album" }}{% endblock %}
-{% block content %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const titleInput = document.querySelector('input[name="title"]');
+  const slugInput = document.querySelector('input[name="slug"]');
+  
+  if (titleInput && slugInput) {
+    titleInput.addEventListener('input', function() {
+      if (!slugInput.dataset.touched) {
+        slugInput.value = titleInput.value
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/[\s_-]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+    });
+    
+    slugInput.addEventListener('input', function() {
+      slugInput.dataset.touched = "true";
+    });
+  }
+});
+</script>
+{% endblock %}
+{% block album_content %}
 <h1 style="margin-bottom:1.5rem">{{ page_title|default:"Album" }}</h1>
 <form method="post" style="max-width:500px">
   {% csrf_token %}
@@ -16,6 +41,6 @@
   {% endif %}
   {% endfor %}
   <button type="submit" class="btn">{{ submit_label|default:"Save" }}</button>
-  {% if album %}<a href="{% url 'album_detail' album.pk %}" class="btn" style="background:#333;margin-left:.5rem">Cancel</a>{% endif %}
+  {% if album %}<a href="{{ album.get_absolute_url }}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>{% endif %}
 </form>
 {% endblock %}

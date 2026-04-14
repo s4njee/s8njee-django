@@ -1,50 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Photos{% endblock %}</title>
-  <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png?v=4">
-  <link rel="icon" type="image/png" sizes="96x96" href="/static/favicon/favicon-96x96.png?v=4">
-  <link rel="icon" type="image/svg+xml" href="/static/favicon/favicon.svg?v=4">
-  <link rel="icon" type="image/x-icon" href="/static/favicon/favicon.ico?v=4">
-  <link rel="manifest" href="/static/favicon/site.webmanifest?v=4">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Helvetica, Arial, sans-serif; background: #111; color: #e0e0e0; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 2rem; }
-    .container { }
-    h1, h2, h3 { color: #fff; }
-    a { color: #ffffff; text-decoration: none; }
-    a:hover { text-decoration: none; }
-    .nav-link { color: #aaa; font-size: 0.95rem; text-decoration: none; }
-    .nav-link:hover { color: #fff; text-decoration: none; }
-    .btn { display: inline-block; padding: .5rem 1.2rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: .9rem; }
-    .btn:hover { background: #1d4ed8; text-decoration: none; }
-    header { border-bottom: 2px solid #555; padding-bottom: 1rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
-    .card { background: #161616; border-radius: 8px; overflow: hidden; border: 1px solid #222; transition: border-color .2s; }
-    .card:hover { border-color: #444; }
-    .card img { width: 100%; aspect-ratio: 1; object-fit: cover; }
-    .card-body { padding: .75rem; }
-    input, textarea, select { background: #1a1a1a; border: 1px solid #333; color: #e0e0e0; padding: .5rem; border-radius: 6px; width: 100%; font-size: .95rem; }
-    input:focus, textarea:focus { outline: none; border-color: #2563eb; }
-    label { display: block; margin-bottom: .3rem; font-weight: 500; color: #aaa; font-size: .85rem; }
-    .form-group { margin-bottom: 1rem; }
-    .album-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-    .empty { text-align: center; padding: 3rem; color: #666; }
-  </style>
-</head>
-<body>
-  <header>
-    <div>
-      <h1><a href="{% url 'album_list' %}">Sanjee's Photos</a></h1>
-      <nav style="display:flex;gap:1.5rem;margin-top:0.5rem;">
-        <a href="{% url 'post_list' %}" class="nav-link">Blog</a>
-        <a href="{% url 'album_list' %}" class="nav-link">Photos</a>
-      </nav>
-    </div>
-    <div>{% if user.is_staff %}<a href="{% url 'album_create' %}" class="btn">+ New Album</a> <form method="post" action="{% url 'logout' %}" style="display:inline"><button type="submit" class="btn" style="background:#333">{% csrf_token %}Logout</button></form>{% endif %}</div>
-  </header>
-  <div>{% block content %}{% endblock %}</div>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Photos{% endblock %}
+
+{% block extra_head %}
+{% if user.is_staff %}
+<style>
+  .admin-actions { display: flex; gap: 1rem; margin-bottom: 2rem; }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if user.is_staff %}
+  <div class="admin-actions">
+    <a href="{% url 'album_create' %}" class="btn">+ New Album</a>
+    <form method="post" action="{% url 'logout' %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary">Logout</button>
+    </form>
+  </div>
+  {% endif %}
+  
+  {% block album_content %}{% endblock %}
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+

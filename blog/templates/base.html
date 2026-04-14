@@ -3,125 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Blog{% endblock %}</title>
+    <title>{% block title %}Sanjee's Journal{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Sanjee's personal blog and photography portfolio.{% endblock %}">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{% block og_title %}{{ self.title }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ self.meta_description }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}/static/favicon/apple-touch-icon.png{% endblock %}">
+    
+    <link rel="stylesheet" href="/static/css/style.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png?v=4">
     <link rel="icon" type="image/png" sizes="96x96" href="/static/favicon/favicon-96x96.png?v=4">
     <link rel="icon" type="image/svg+xml" href="/static/favicon/favicon.svg?v=4">
     <link rel="icon" type="image/x-icon" href="/static/favicon/favicon.ico?v=4">
     <link rel="manifest" href="/static/favicon/site.webmanifest?v=4">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Helvetica, Arial, sans-serif; line-height: 1.7; color: #e0e0e0; background: #111; max-width: 960px; margin: 0 auto; padding: 2rem; }
-        header { border-bottom: 2px solid #555; padding-bottom: 1rem; margin-bottom: 2rem; }
-        header h1 a { text-decoration: none; color: #fff; }
-        .layout { display: flex; gap: 3rem; }
-        .main { flex: 1; }
-        .sidebar { width: 220px; flex-shrink: 0; }
-        .sidebar h3 { margin-bottom: 0.5rem; font-size: 1rem; }
-        .sidebar ul { list-style: none; }
-        .sidebar li { margin-bottom: 0.3rem; }
-        .sidebar a { text-decoration: none; color: #aaa; font-size: 0.9rem; }
-        .sidebar a:hover { color: #fff; }
-        .sidebar .count { color: #666; }
-        article { margin-bottom: 3rem; }
-        article h2 a { text-decoration: none; color: #fff; }
-        article h2 a:hover { color: #aaa; }
-        .meta { color: #777; font-size: 0.9rem; margin-bottom: 1rem; }
-        .content { margin-top: 1rem; }
-        article p { margin-bottom: 1em; }
-        .post-content > :first-child { margin-top: 0; }
-        .post-content > :last-child { margin-bottom: 0; }
-        .post-content h1, .post-content h2, .post-content h3,
-        .post-content h4, .post-content h5, .post-content h6 {
-            margin: 1.75rem 0 0.75rem;
-            line-height: 1.25;
-            color: #fff;
-        }
-        .post-content ul, .post-content ol { margin: 0 0 1rem 1.5rem; }
-        .post-content li { margin-bottom: 0.35rem; }
-        .post-content blockquote {
-            margin: 1.5rem 0;
-            padding-left: 1rem;
-            border-left: 3px solid #666;
-            color: #bdbdbd;
-        }
-        .post-content code {
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            background: #1d1d1d;
-            padding: 0.12rem 0.35rem;
-            border-radius: 0.25rem;
-        }
-        .post-content pre {
-            overflow-x: auto;
-            background: #1d1d1d;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin: 1.25rem 0;
-        }
-        .post-content pre code {
-            background: transparent;
-            padding: 0;
-        }
-        .post-content a { color: #f1f1f1; }
-        .post-content img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 0.5rem;
-        }
-        .post-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1.5rem 0;
-        }
-        .post-content th, .post-content td {
-            padding: 0.65rem 0.75rem;
-            border-bottom: 1px solid #333;
-            text-align: left;
-        }
-        a.back-link { color: #fff; }
-        .pagination { margin-top: 2rem; }
-        .pagination a { margin-right: 1rem; }
-        nav { display: flex; gap: 1.5rem; margin-top: 0.5rem; }
-        nav a { text-decoration: none; color: #aaa; font-size: 0.95rem; }
-        nav a:hover { color: #fff; }
-        @media (max-width: 700px) {
-            .layout { flex-direction: column; }
-            .sidebar { width: 100%; }
-        }
-    </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header>
-        <h1><a href="{% url 'post_list' %}">Sanjee's Journal</a></h1>
+        <h1><a href="/">Sanjee's Journal</a></h1>
         <nav>
-            <a href="{% url 'post_list' %}">Blog</a>
-            <a href="{% url 'album_list' %}">Photos</a>
+            <a href="{% url 'post_list' %}" class="{% if request.resolver_match.app_name == 'posts' %}active{% endif %}">Blog</a>
+            <a href="{% url 'album_list' %}" class="{% if request.resolver_match.app_name == 'albums' %}active{% endif %}">Photos</a>
             {% if user.is_authenticated and user.is_staff %}
                 <a href="{% url 'post_editor_new' %}">Write</a>
             {% endif %}
         </nav>
     </header>
+
     <div class="layout">
         <main class="main">
             {% block content %}{% endblock %}
         </main>
+        
+        {% block sidebar %}
         <aside class="sidebar">
+            {% if archive_months %}
             <h3>Archive</h3>
             <ul>
-            {% for m in archive_months %}
+                {% for m in archive_months %}
                 <li>
                     <a href="{% url 'post_archive_month' m.month.year m.month.month %}">
                         {{ m.month|date:"F Y" }}
                     </a>
                     <span class="count">({{ m.count }})</span>
                 </li>
-            {% empty %}
-                <li>No posts yet.</li>
-            {% endfor %}
+                {% endfor %}
             </ul>
+            {% endif %}
         </aside>
+        {% endblock %}
     </div>
+
+    <footer>
+        <div>&copy; {% now "Y" %} Sanjee. All rights reserved.</div>
+        <nav>
+            <a href="{% url 'post_list' %}">About</a>
+            <a href="/sitemap.xml">Sitemap</a>
+            <a href="/feed/">RSS</a>
+        </nav>
+    </footer>
+
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

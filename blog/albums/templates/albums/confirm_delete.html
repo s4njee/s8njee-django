@@ -1,6 +1,6 @@
 {% extends "albums/base.html" %}
 {% block title %}Delete {{ object_label|default:"item" }}{% endblock %}
-{% block content %}
+{% block album_content %}
 <h1 style="margin-bottom:1rem">Delete {{ object_label|default:"item" }}</h1>
 <p style="color:#bbb;max-width:640px;margin-bottom:1.5rem">
   Are you sure you want to delete {{ object }}? This action cannot be undone.
@@ -15,6 +15,6 @@
   </div>
   {% endfor %}
   <button type="submit" class="btn" style="background:#b91c1c">Delete</button>
-  <a href="{{ back_url }}" class="btn" style="background:#333;margin-left:.5rem">Cancel</a>
+  <a href="{{ back_url }}" class="btn btn-secondary" style="margin-left:.5rem">Cancel</a>
 </form>
 {% endblock %}

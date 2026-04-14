@@ -7,6 +7,7 @@ urlpatterns = [
     path("<uuid:pk>/edit/", views.album_edit, name="album_edit"),
     path("<uuid:pk>/delete/", views.album_delete, name="album_delete"),
     path("<uuid:pk>/", views.album_detail, name="album_detail"),
+    path("s/<slug:slug>/", views.album_detail, name="album_detail_slug"),
     path("<uuid:album_pk>/photos/<uuid:photo_pk>/set-cover/", views.album_set_cover_photo, name="album_set_cover_photo"),
     path("<uuid:album_pk>/upload/", views.photo_upload, name="photo_upload"),
     path("<uuid:album_pk>/upload/single/", views.photo_upload_single, name="photo_upload_single"),

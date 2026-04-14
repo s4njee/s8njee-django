@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }}{% endblock %}
+{% block title %}{{ post.title }} | Sanjee's Journal{% endblock %}
+{% block meta_description %}{{ post.content|truncatewords:30 }}{% endblock %}
+
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ post.content|truncatewords:30 }}{% endblock %}
 
 {% block content %}
 <article>
