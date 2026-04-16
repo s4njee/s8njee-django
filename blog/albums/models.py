@@ -1,9 +1,13 @@
 import uuid
 
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models import Max
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 
+from .cache_keys import ALBUM_LIST_CACHE_KEY, get_album_detail_cache_key
 from .image_processing import extract_exif_summary, make_thumbnail_from_image_file
 
 
@@ -123,3 +127,15 @@ class Photo(models.Model):
                 except Exception:
                     data = {}
         return [{"label": label, "value": value} for label, value in data.items()]
+
+
+@receiver([post_save, post_delete], sender=Album)
+def invalidate_album_cache_on_album_change(sender, instance, **kwargs):
+    cache.delete(ALBUM_LIST_CACHE_KEY)
+    cache.delete(get_album_detail_cache_key(instance.pk))
+
+
+@receiver([post_save, post_delete], sender=Photo)
+def invalidate_album_cache_on_photo_change(sender, instance, **kwargs):
+    cache.delete(ALBUM_LIST_CACHE_KEY)
+    cache.delete(get_album_detail_cache_key(instance.album_id))

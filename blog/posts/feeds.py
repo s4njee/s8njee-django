@@ -1,22 +1,23 @@
 from django.contrib.syndication.views import Feed
-from django.urls import reverse
+from django.utils.feedgenerator import Rss201rev2Feed
+from django.utils.safestring import mark_safe
 from .models import Post
 
+
 class LatestPostsFeed(Feed):
-    # Feed is Django's syndication class; item_* methods map model fields to RSS.
     title = "Sanjee's Journal"
     link = "/"
     description = "Latest blog posts from Sanjee's journal."
+    feed_type = Rss201rev2Feed
 
     def items(self):
-        return Post.objects.filter(published=True).order_by('-published_at', '-created_at')[:10]
+        return Post.objects.filter(published=True).order_by('-published_at', '-created_at')[:25]
 
     def item_title(self, item):
         return item.title
 
     def item_description(self, item):
-        # We can use the rendered markdown but for RSS it's better to keep it clean or use a snippet
-        return item.content[:300] + '...' if len(item.content) > 300 else item.content
+        return mark_safe(item.rendered_content)
 
     def item_pubdate(self, item):
         return item.published_at or item.created_at

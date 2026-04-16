@@ -11,6 +11,9 @@ resources:
   - postgres-statefulset.yaml
   - registry-pull-sealed-secret.yaml
   - ingress.yaml
+  - valkey-deployment.yaml
+  - valkey-service.yaml
+  - celery-worker-deployment.yaml
 patches:
   - path: deployment-patch.yaml
   - path: backup-cronjob-patch.yaml

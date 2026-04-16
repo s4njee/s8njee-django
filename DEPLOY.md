@@ -45,9 +45,11 @@ Use `deploy/netcup/migrations/` as the staging area for Django migrations that s
 
 - When you add a new migration under `blog/<app>/migrations/`, copy the same file into `deploy/netcup/migrations/<app>/` before you consider the change ready for Netcup.
 - Keep the staged copy in git until the Netcup rollout has applied it.
-- For the current album work, the staged migrations are:
+- The currently staged migrations are:
   - `deploy/netcup/migrations/albums/0005_alter_photo_options_photo_sort_order.py`
   - `deploy/netcup/migrations/albums/0006_album_cover_photo.py`
+  - `deploy/netcup/migrations/albums/0007_photo_image_variants.py`
+  - `deploy/netcup/migrations/albums/0008_album_slug_photo_alt_text.py`
 - When it is time to deploy to Netcup, make sure the staged migration folder matches the real app migrations, then ship the normal Netcup release as usual.
 - After the rollout, verify the pod logs show the new migrations being applied, then clear the staged copies once Netcup is up to date.
 
@@ -141,8 +143,11 @@ It is the canonical production startup path and always runs these steps in order
 
 1. `manage.py migrate --noinput`
 2. load `fixtures/seed_content.json` only if the site has no posts or albums
-3. `manage.py collectstatic --noinput`
-4. start Uvicorn on port `8000`
+3. `manage.py backfill_photo_sort_order`
+4. `manage.py backfill_album_slugs`
+5. `manage.py backfill_image_variants`
+6. `manage.py collectstatic --noinput`
+7. start Uvicorn on port `8000`
 
 The deployment is intentionally pinned to one app replica because startup currently owns migrations and seed loading.
 
@@ -196,7 +201,7 @@ kubectl --context=netcup exec -i -n s8njee-web s8njee-postgres-0 -- \
 
 ### Media
 
-Production media is stored in S3. Uploaded album photos and blog post images are object keys in `s8njee-photoblog`, such as `photos/...` and `blog-images/...`.
+Production media is stored in S3 (migrating to Backblaze B2 — see `docs/Engineering.md`). Uploaded album photos and blog post images are object keys in `s8njee-photoblog`, such as `photos/...` and `blog-images/...`.
 
 Back up the bucket before destructive media changes:
 
@@ -257,7 +262,7 @@ Freya uses:
 - Celery broker: `valkey` in the same namespace
 - Celery worker: `s8njee-celery-worker`
 
-Freya does have Argo CD installed, but the active app list currently does not include `s8njee-web-freya`. Treat Freya as a manual dev deployment unless an Argo application is recreated intentionally.
+Freya does have Argo CD installed. The `s8njee-web-freya` Argo CD Application manifest is at `k8s/argocd/freya-application.yaml`. Treat Freya as a manual dev deployment unless that application is actively synced.
 
 For Freya-specific health checks:
 

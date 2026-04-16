@@ -1,9 +1,12 @@
 import json
 
+from asgiref.sync import sync_to_async
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Count
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import aget_object_or_404, get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView
@@ -15,6 +18,12 @@ from .forms import (
     PhotoEditForm,
     PhotoUploadForm,
 )
+from .cache_keys import (
+    ALBUM_DETAIL_TTL,
+    ALBUM_LIST_CACHE_KEY,
+    ALBUM_LIST_TTL,
+    get_album_detail_cache_key,
+)
 from .models import Album, Photo, PhotoStatus
 from .tasks import process_photo
 
@@ -24,8 +33,17 @@ class AlbumListView(ListView):
     model = Album
     template_name = "albums/album_list.html"
     context_object_name = "albums"
-    # select_related joins FK rows; prefetch_related does a second query for reverse FKs.
-    queryset = Album.objects.select_related("cover_photo").prefetch_related("photos")
+    # ListView can render from a list, so this can return cached evaluated rows.
+    def get_queryset(self):
+        albums = cache.get(ALBUM_LIST_CACHE_KEY)
+        if albums is None:
+            albums = list(
+                Album.objects.annotate(photo_count=Count("photos"))
+                .select_related("cover_photo")
+                .order_by("-created_at")
+            )
+            cache.set(ALBUM_LIST_CACHE_KEY, albums, ALBUM_LIST_TTL)
+        return albums
 
 
 def album_detail(request, pk=None, slug=None):
@@ -34,36 +52,45 @@ def album_detail(request, pk=None, slug=None):
         album = get_object_or_404(Album, slug=slug)
     else:
         album = get_object_or_404(Album, pk=pk)
-    photos = list(album.photos.all())
-    ready_photos = [photo for photo in photos if photo.status == PhotoStatus.READY and photo.image]
-    ready_index = 0
-    for photo in photos:
-        if photo.status == PhotoStatus.READY and photo.image:
-            photo.ready_index = ready_index
-            ready_index += 1
-        else:
-            photo.ready_index = None
-    ready_photo_payloads = [
-        {
-            "id": str(photo.pk),
-            "url": photo.image.url,
-            "url_medium": photo.image_medium.url if photo.image_medium else "",
-            "url_small": photo.image_small.url if photo.image_small else "",
-            "caption": photo.caption,
-            "alt_text": photo.alt_text,
-            "exif": photo.exif_display_items(),
+    detail_cache_key = get_album_detail_cache_key(album.pk)
+    detail_cache_payload = cache.get(detail_cache_key)
+    if detail_cache_payload is None:
+        photos = list(album.photos.all())
+        ready_photos = [photo for photo in photos if photo.status == PhotoStatus.READY and photo.image]
+        ready_index = 0
+        for photo in photos:
+            if photo.status == PhotoStatus.READY and photo.image:
+                photo.ready_index = ready_index
+                ready_index += 1
+            else:
+                photo.ready_index = None
+        ready_photo_payloads = [
+            {
+                "id": str(photo.pk),
+                "url": photo.image.url,
+                "url_medium": photo.image_medium.url if photo.image_medium else "",
+                "url_small": photo.image_small.url if photo.image_small else "",
+                "caption": photo.caption,
+                "alt_text": photo.alt_text,
+                "exif": photo.exif_display_items(),
+            }
+            for photo in ready_photos
+        ]
+        detail_cache_payload = {
+            "photos": photos,
+            "ready_photos": ready_photos,
+            "ready_photo_payloads": ready_photo_payloads,
         }
-        for photo in ready_photos
-    ]
+        cache.set(detail_cache_key, detail_cache_payload, ALBUM_DETAIL_TTL)
     return render(
         # render combines the request, template, and context into an HttpResponse.
         request,
         "albums/album_detail.html",
         {
             "album": album,
-            "photos": photos,
-            "ready_photos": ready_photos,
-            "ready_photo_payloads": ready_photo_payloads,
+            "photos": detail_cache_payload["photos"],
+            "ready_photos": detail_cache_payload["ready_photos"],
+            "ready_photo_payloads": detail_cache_payload["ready_photo_payloads"],
         },
     )
 
@@ -168,9 +195,13 @@ def _photo_status_payload(photo: Photo, album_pk):
 
 
 @staff_member_required
-def photo_upload_single(request, album_pk):
-    """Accept a single photo upload and queue it for background processing."""
-    album = get_object_or_404(Album, pk=album_pk)
+async def photo_upload_single(request, album_pk):
+    """Accept a single photo upload and queue it for background processing.
+
+    Async so uvicorn can handle concurrent uploads instead of serialising them
+    behind a single thread-sensitive sync_to_async wrapper.
+    """
+    album = await aget_object_or_404(Album, pk=album_pk)
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
 
@@ -180,18 +211,18 @@ def photo_upload_single(request, album_pk):
         errors = form.errors.get("image") or form.non_field_errors()
         return JsonResponse({"error": errors[0] if errors else "Invalid upload."}, status=400)
 
-    photo = Photo.objects.create(
+    photo = await Photo.objects.acreate(
         album=album,
         original=form.cleaned_data["image"],
         status=PhotoStatus.PENDING,
     )
 
-    def queue_photo_processing() -> None:
-        process_photo.delay(str(photo.pk))
-
-    # Queue Celery only after the database transaction has committed the Photo row.
-    transaction.on_commit(queue_photo_processing)
-    photo.refresh_from_db()
+    # Run on_commit + delay on the same executor thread that acreate used so
+    # they share one DB connection (important for eager-mode Celery in tests).
+    await sync_to_async(
+        lambda: transaction.on_commit(lambda: process_photo.delay(str(photo.pk)))
+    )()
+    await photo.arefresh_from_db()
 
     status_code = 201 if photo.status == PhotoStatus.READY else 202
     return JsonResponse(_photo_status_payload(photo, album.pk), status=status_code)
@@ -344,9 +375,9 @@ def photo_reorder(request, album_pk):
 
 
 @staff_member_required
-def photo_status(request, album_pk, photo_pk):
-    album = get_object_or_404(Album, pk=album_pk)
-    photo = get_object_or_404(Photo, pk=photo_pk, album=album)
+async def photo_status(request, album_pk, photo_pk):
+    album = await aget_object_or_404(Album, pk=album_pk)
+    photo = await aget_object_or_404(Photo, pk=photo_pk, album=album)
     return JsonResponse(_photo_status_payload(photo, album.pk))
 
 

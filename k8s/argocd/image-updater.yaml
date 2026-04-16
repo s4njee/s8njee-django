@@ -17,3 +17,8 @@ spec:
           manifestTargets:
             kustomize:
               name: s8njee-web
+        - alias: s8njee-celery-worker
+          imageName: registry.s8njee.com/s8njee-web:sha-822ae2b828fc345fb436d200ac4f265d1913c755
+          manifestTargets:
+            kustomize:
+              name: s8njee-celery-worker

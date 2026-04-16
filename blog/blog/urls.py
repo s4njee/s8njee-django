@@ -33,3 +33,8 @@ urlpatterns = [
 if settings.MEDIA_URL.startswith('/'):
     # In local/dev file storage, Django can serve MEDIA_ROOT through this helper.
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG:
+    import debug_toolbar
+
+    urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns

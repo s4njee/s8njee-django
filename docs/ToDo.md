@@ -46,7 +46,7 @@ Assumed scope for "feature complete":
 
 - [x] Document Netcup migration staging workflow.
 
-  A. Done April 2026. `deploy/netcup/migrations/` is the staging area for Django migrations before each Netcup rollout. `DEPLOY.md` documents the copy-stage-verify-clear process and the manual `manage.py migrate` escape hatch.
+  A. Done April 2026. `deploy/netcup/migrations/` is the staging area for Django migrations before each Netcup rollout. `DEPLOY.md` documents the copy-stage-verify-clear process and the manual `manage.py migrate` escape hatch. Currently staged: `albums/0005` through `albums/0008`.
 
 - [x] Add one canonical startup path for local development and one for production.
 
@@ -281,6 +281,7 @@ Assumed scope for "feature complete":
 - [ ] Automate database backups via a scheduled CronJob dumping to S3.
 
 - [ ] Decide on a caching strategy (Redis/Memcached for template fragments or query caching).
+  See [`docs/implementation/CACHE.md`](implementation/CACHE.md) for the implementation plan and open design questions.
 
 - [ ] Configure SMTP for error-reporting emails and password resets.
 
@@ -293,3 +294,25 @@ Assumed scope for "feature complete":
 - [ ] Decide whether fixtures run at all on production startup.
 
 - [ ] Add polished launch-ready content: real posts, real albums with captions.
+
+## bugs
+
+- [ ] **Fix empty default Open Graph title/description values**  
+  **Delegate to:** SEO/templating agent  
+  `blog/templates/base.html` uses `{{ self.title }}` and `{{ self.meta_description }}` inside OG default blocks, which can render empty values on pages that do not override OG blocks (e.g. list pages and error pages). Replace with explicit safe defaults.
+
+- [ ] **Use absolute URLs for OG images**  
+  **Delegate to:** SEO agent  
+  OG images in `blog/templates/base.html` and `blog/albums/templates/albums/album_detail.html` are rendered as relative paths; social crawlers typically expect absolute URLs. Build absolute media/static URLs using request context.
+
+- [ ] **Avoid duplicate album detail URL variants in photo permalinks**  
+  **Delegate to:** routing/SEO agent  
+  `photo_permalink` in `blog/albums/views.py` always redirects to the PK route, even when an album slug exists. This creates duplicate entry URLs and weakens the slug-based URL strategy.
+
+- [ ] **Fix N+1 photo-count queries on album list**  
+  **Delegate to:** backend performance agent  
+  `blog/albums/templates/albums/album_list.html` uses `album.photos.count` per card; this can trigger per-album count queries. Move to `annotate(photo_count=...)` in `AlbumListView` and render `album.photo_count`.
+
+- [ ] **Harden RSS descriptions for feed readers**  
+  **Delegate to:** syndication agent  
+  `LatestPostsFeed.item_description` returns `mark_safe(item.rendered_content)` directly in `blog/posts/feeds.py`; this can produce inconsistent rendering in strict feed readers. Add feed-safe description output (sanitized/normalized HTML or plaintext summary fallback).

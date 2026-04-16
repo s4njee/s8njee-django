@@ -1,4 +1,5 @@
 {% extends "albums/base.html" %}
+{% block title %}Sanjee's Blog | Photos{% endblock %}
 {% block album_content %}
 <h3 style="margin-bottom:1.5rem">Albums</h3>
 {% if albums %}
@@ -24,7 +25,7 @@
     {% endwith %}
     <div class="card-body">
       <strong>{{ album.title }}</strong>
-      <div style="color:#888;font-size:.8rem">{{ album.photos.count }} photo{{ album.photos.count|pluralize }}</div>
+      <div style="color:#888;font-size:.8rem">{{ album.photo_count }} photo{{ album.photo_count|pluralize }}</div>
     </div>
   </a>
   {% endfor %}

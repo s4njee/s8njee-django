@@ -29,7 +29,6 @@ Every file listed here is a place where you directly change behaviour. The role 
 |------|----------------|
 | `blog/.env` | Loaded by `settings/base.py` via `python-dotenv` at startup. Every `env('VAR')` call in settings reads from here. This is the primary knob file for secrets and mode switches. |
 | `blog/.env.example` | Template — documents every variable `base.py` reads. Copy to `.env` and fill in. |
-| `db.env.example` | Documents the three PostgreSQL variables (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`) that the cluster's PostgreSQL StatefulSet reads via `envFrom`. Copy to `db.env` for Docker Compose use. |
 
 #### Variables in `blog/.env`
 
@@ -42,9 +41,9 @@ Every file listed here is a place where you directly change behaviour. The role 
 | `CSRF_TRUSTED_ORIGINS` | — | Comma-separated origins for CSRF. Required in production when the app is behind a reverse proxy. |
 | `ENABLE_SSL` | `False` | Enables `SECURE_SSL_REDIRECT`, `HSTS`, and secure cookies in `settings/production.py`. |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | blank → SQLite | Blank values leave Django on SQLite. Set all five to switch to PostgreSQL. |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | blank | S3 credentials. Leave blank to store uploads on the local filesystem. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | blank | S3-compatible credentials (AWS S3 or Backblaze B2). Leave blank to store uploads on the local filesystem. |
 | `AWS_STORAGE_BUCKET_NAME` | blank | Presence of this variable switches Django's default storage backend from `FileSystemStorage` to `S3Boto3Storage`. |
-| `AWS_S3_REGION_NAME` | `us-east-1` | S3 region for the bucket above. |
+| `AWS_S3_REGION_NAME` | `us-east-1` | Region or endpoint region for the bucket. For Backblaze B2, also set `AWS_S3_ENDPOINT_URL`. |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Redis URL for the Celery task queue used by async photo processing. |
 | `CELERY_TASK_ALWAYS_EAGER` | `True` in dev, `False` in prod | When `True`, Celery tasks run synchronously in-process — no worker or Redis needed locally. |
 

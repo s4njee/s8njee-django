@@ -96,6 +96,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+WHITENOISE_AUTOREFRESH = True  # Rescan STATIC_ROOT per-request (safe in prod, essential for dev hot-reload)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -138,3 +139,11 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TIME_LIMIT = 600
 CELERY_TASK_SOFT_TIME_LIMIT = 540
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        # DB index 1 keeps cache separate from Celery's queue (DB 0).
+        "LOCATION": env("REDIS_URL", default="redis://localhost:6379/1"),
+    }
+}

@@ -32,6 +32,10 @@ spec:
           hostPath:
             path: /home/sanjee/tmp/s8njee-web/blog/static
             type: Directory
+        - name: app-staticfiles
+          hostPath:
+            path: /home/sanjee/tmp/s8njee-web/blog/staticfiles
+            type: DirectoryOrCreate
         - name: app-fixtures
           hostPath:
             path: /home/sanjee/tmp/s8njee-web/blog/fixtures
@@ -65,6 +69,8 @@ spec:
               mountPath: /app/templates
             - name: app-static
               mountPath: /app/static
+            - name: app-staticfiles
+              mountPath: /app/staticfiles
             - name: app-fixtures
               mountPath: /app/fixtures
           # Override the default command to add --reload for auto-reloading on file changes.

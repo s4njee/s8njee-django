@@ -19,7 +19,7 @@ These manifests deploy the Django app directly behind a Traefik ingress controll
 
 ## Important Assumptions
 
-- Media is stored in S3, so there is no persistent volume for uploads in this manifest set.
+- Media is stored in an S3-compatible bucket (currently migrating from AWS S3 to Backblaze B2), so there is no persistent volume for uploads in this manifest set.
 - The app currently runs migrations and seed loading during container startup, so the deployment is pinned to `replicas: 1`. If you want horizontal scaling later, split migrations and seeding into a separate `Job`.
 
 ## Build And Push The Image
