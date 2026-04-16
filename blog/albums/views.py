@@ -25,7 +25,7 @@ from .cache_keys import (
     get_album_detail_cache_key,
 )
 from .models import Album, Photo, PhotoStatus
-from .tasks import process_photo
+from .tasks import delete_album_files, process_photo
 
 
 class AlbumListView(ListView):
@@ -140,9 +140,15 @@ def album_delete(request, pk):
     if request.method == "POST":
         form = AlbumDeleteForm(request.POST)
         if form.is_valid():
+            file_names = []
             for photo in album.photos.all():
-                photo.delete_files()
+                for field_name in ("image", "image_medium", "image_small", "thumbnail", "original"):
+                    field_file = getattr(photo, field_name)
+                    if field_file and field_file.name:
+                        file_names.append(field_file.name)
             album.delete()
+            if file_names:
+                transaction.on_commit(lambda: delete_album_files.delay(file_names))
             return redirect("album_list")
     else:
         form = AlbumDeleteForm()
