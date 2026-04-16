@@ -157,16 +157,12 @@ function uploadFile(file, onProgress) {
     };
     xhr.onload = () => {
       let payload = {};
-      try {
-        payload = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch (err) {
-        payload = {};
-      }
+      try { payload = JSON.parse(xhr.responseText); } catch (_) {}
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(payload);
         return;
       }
-      reject(new Error(payload.error || xhr.statusText || `HTTP ${xhr.status}`));
+      reject(new Error(payload.error || `HTTP ${xhr.status}`));
     };
     xhr.onerror = () => reject(new Error("Network error"));
 
