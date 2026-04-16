@@ -23,8 +23,13 @@ spec:
               imagePullPolicy: IfNotPresent
               command:
                 - /bin/sh
-                - -lc
-                - cd /app && uv run python manage.py backup_postgres_if_changed
+                - -c
+                - |
+                  export DJANGO_SETTINGS_MODULE=blog.settings.production
+                  DB_HOST="${S8NJEE_POSTGRES_SERVICE_HOST:-${DB_HOST:-}}"
+                  DB_PORT="${S8NJEE_POSTGRES_SERVICE_PORT:-${DB_PORT:-5432}}"
+                  export DB_HOST DB_PORT
+                  cd /app && uv run python manage.py backup_postgres_if_changed
               envFrom:
                 - configMapRef:
                     name: s8njee-web-config
