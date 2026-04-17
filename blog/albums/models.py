@@ -128,6 +128,16 @@ class Photo(models.Model):
                     data = {}
         return [{"label": label, "value": value} for label, value in data.items()]
 
+    def exif_captured_date(self):
+        captured = next(
+            (item["value"] for item in self.exif_display_items() if item["label"] == "Captured"),
+            "",
+        )
+        captured = str(captured).strip()
+        if len(captured) >= 10 and captured[4] == ":" and captured[7] == ":":
+            return captured[:10].replace(":", "-")
+        return captured.split(maxsplit=1)[0] if captured else ""
+
 
 @receiver([post_save, post_delete], sender=Album)
 def invalidate_album_cache_on_album_change(sender, instance, **kwargs):

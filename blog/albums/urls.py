@@ -17,5 +17,6 @@ urlpatterns = [
     path("<uuid:album_pk>/photos/<uuid:photo_pk>/move/<str:direction>/", views.photo_move, name="photo_move"),
     path("<uuid:album_pk>/photos/reorder/", views.photo_reorder, name="photo_reorder"),
     path("<uuid:album_pk>/photos/<uuid:photo_pk>/status/", views.photo_status, name="photo_status"),
+    path("<uuid:album_pk>/photos/<uuid:photo_pk>/exif-date/", views.photo_exif_date, name="photo_exif_date"),
     path("<uuid:album_pk>/photos/<uuid:photo_pk>/", views.photo_permalink, name="photo_permalink"),
 ]

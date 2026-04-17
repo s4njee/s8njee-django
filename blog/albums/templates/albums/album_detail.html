@@ -58,6 +58,25 @@
   .album-masonry .photo-card .card-body * {
     pointer-events: auto;
   }
+  .album-masonry .photo-date-panel {
+    background: rgba(0, 0, 0, .68);
+    bottom: 4px;
+    color: #f5f5f5;
+    font-size: .72rem;
+    left: 4px;
+    letter-spacing: .02em;
+    line-height: 1;
+    opacity: 0;
+    padding: .25rem .35rem;
+    pointer-events: none;
+    position: absolute;
+    transition: opacity .16s ease;
+    z-index: 1;
+  }
+  .album-masonry .photo-card:hover .photo-date-panel:not(:empty),
+  .album-masonry .photo-card:focus-within .photo-date-panel:not(:empty) {
+    opacity: 1;
+  }
   @supports (grid-template-rows: masonry) {
     .album-masonry {
       align-tracks: stretch;
@@ -134,12 +153,17 @@
       data-ready-photo="true"
       {% if user.is_staff %}draggable="true" ondragstart="beginDrag(event)" ondragend="endDrag(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endif %}
       onclick="handleCardClick(event, '{{ photo.pk }}')"
+      hx-get="{% url 'photo_exif_date' album.pk photo.pk %}"
+      hx-trigger="mouseenter once, focusin once, touchstart once"
+      hx-target="#photo-date-{{ photo.pk }}"
+      hx-swap="innerHTML"
     >
       {% if photo.thumbnail %}
         <img src="{{ photo.thumbnail.url }}" alt="{{ photo.alt_text|default:photo.caption|default:album.title }}" loading="lazy">
       {% else %}
         <img src="{{ photo.image.url }}" alt="{{ photo.alt_text|default:photo.caption|default:album.title }}" loading="lazy">
       {% endif %}
+      <div id="photo-date-{{ photo.pk }}" class="photo-date-panel" aria-live="polite"></div>
       {% if user.is_staff %}
       <div class="card-body">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem">

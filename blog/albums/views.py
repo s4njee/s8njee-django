@@ -432,3 +432,13 @@ def photo_permalink(request, album_pk, photo_pk):
     url = reverse("album_detail", kwargs={"pk": album_pk})
     # HttpResponseRedirect is useful when the redirect target includes a hash fragment.
     return HttpResponseRedirect(f"{url}#photo-{photo_pk}")
+
+
+def photo_exif_date(request, album_pk, photo_pk):
+    album = get_object_or_404(Album, pk=album_pk)
+    photo = get_object_or_404(Photo, pk=photo_pk, album=album)
+    return render(
+        request,
+        "albums/photo_exif_date.html",
+        {"captured_date": photo.exif_captured_date()},
+    )

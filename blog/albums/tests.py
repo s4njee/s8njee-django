@@ -138,6 +138,46 @@ class PhotoUploadAsyncTests(TestCase):
         self.assertContains(album_response, "Camera Make")
         self.assertContains(album_response, "NIKON D600")
 
+    def test_album_detail_lazy_loads_photo_exif_date(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_exif_upload()},
+            )
+
+        photo = Photo.objects.get(pk=response.json()["id"])
+        album_response = self.client.get(reverse("album_detail", kwargs={"pk": self.album.pk}))
+
+        self.assertContains(
+            album_response,
+            f'hx-get="{reverse("photo_exif_date", kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk})}"',
+            html=False,
+        )
+        self.assertContains(album_response, 'hx-trigger="mouseenter once, focusin once, touchstart once"', html=False)
+        self.assertNotContains(album_response, "2024-01-02")
+
+    def test_photo_exif_date_returns_only_captured_date(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_exif_upload()},
+            )
+
+        photo = Photo.objects.get(pk=response.json()["id"])
+        response = self.client.get(
+            reverse("photo_exif_date", kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2024-01-02")
+        self.assertNotContains(response, "NIKON")
+        self.assertNotContains(response, "Camera Make")
+        self.assertNotContains(response, "03:04:05")
+
     def test_album_detail_exposes_photo_permalink_for_lightbox_navigation(self):
         self.client.force_login(self.staff_user)
 
