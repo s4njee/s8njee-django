@@ -292,12 +292,8 @@ function navigateLightbox(direction) {
 }
 
 function handleNavigationButtonClick(event, direction) {
+  event.preventDefault();
   event.stopPropagation();
-  // Let HTMX own normal pointer clicks when it is available; keyboard/touch
-  // navigation still calls navigateLightbox() directly as a JS fallback.
-  if (window.htmx) {
-    return;
-  }
   navigateLightbox(direction);
 }
 
