@@ -156,8 +156,8 @@
     </aside>
     <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
       <div style="position:absolute;inset:0;display:flex;z-index:1001">
-        <button id="lb-prev" type="button" aria-label="Previous photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); navigateLightbox(-1);"></button>
-        <button id="lb-next" type="button" aria-label="Next photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); navigateLightbox(1);"></button>
+        <button id="lb-prev" type="button" aria-label="Previous photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="handleNavigationButtonClick(event, -1);"></button>
+        <button id="lb-next" type="button" aria-label="Next photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="handleNavigationButtonClick(event, 1);"></button>
       </div>
       <img id="lb-img" style="max-height:calc(100vh - 3rem);object-fit:contain;border-radius:0" src="" alt="">
       <div id="lb-caption" style="margin-top:.75rem;color:#ccc;font-size:.95rem;text-align:center;max-width:90%"></div>
@@ -286,14 +286,19 @@ function syncLightboxNavigation() {
 }
 
 function navigateLightbox(direction) {
-  const button = direction < 0 ? document.getElementById('lb-prev') : document.getElementById('lb-next');
-  if (button && button.getAttribute('hx-get')) {
-    button.click();
-    return;
-  }
   if (!photos.length) return;
   currentIndex = (currentIndex + direction + photos.length) % photos.length;
   showPhoto();
+}
+
+function handleNavigationButtonClick(event, direction) {
+  event.stopPropagation();
+  // Let HTMX own normal pointer clicks when it is available; keyboard/touch
+  // navigation still calls navigateLightbox() directly as a JS fallback.
+  if (window.htmx) {
+    return;
+  }
+  navigateLightbox(direction);
 }
 
 function beginDrag(event) {
