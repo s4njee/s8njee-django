@@ -15,7 +15,7 @@ These manifests deploy the Django app directly behind a Traefik ingress controll
   - `freya`, which includes a separate PostgreSQL deployment, PVC, and service for this app
 - Overlay-specific `ConfigMap`, secret inputs, and access manifests
 - Argo CD `Application` manifests in `k8s/argocd/` that point at each overlay
-- Argo CD Image Updater for the netcup overlay so image tags move without Git deploy commits
+- Argo CD Image Updater for the netcup and freya overlays so image tags move without Git deploy commits
 
 ## Important Assumptions
 
@@ -60,7 +60,7 @@ Install both applications with:
 kubectl apply -n argocd -k k8s/argocd
 ```
 
-That stack also installs Argo CD Image Updater and the `ImageUpdater` custom resource for `s8njee-web-netcup`.
+That stack also installs Argo CD Image Updater and the `ImageUpdater` custom resources for `s8njee-web-netcup` and `s8njee-web-freya`.
 
 Or install one environment at a time with:
 

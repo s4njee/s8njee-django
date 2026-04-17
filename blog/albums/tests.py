@@ -138,6 +138,61 @@ class PhotoUploadAsyncTests(TestCase):
         self.assertContains(album_response, "Camera Make")
         self.assertContains(album_response, "NIKON D600")
 
+    def test_album_detail_exposes_photo_permalink_for_lightbox_navigation(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            upload_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("permalink.png")},
+            )
+
+        photo = Photo.objects.get(pk=upload_response.json()["id"])
+        album_response = self.client.get(reverse("album_detail", kwargs={"pk": self.album.pk}))
+
+        self.assertContains(
+            album_response,
+            f'data-photo-url="{reverse("photo_permalink", kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk})}"',
+            html=False,
+        )
+
+    def test_photo_permalink_returns_lightbox_fragment_for_htmx_requests(self):
+        self.client.force_login(self.staff_user)
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            first_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("lightbox-a.png")},
+            )
+
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            second_response = self.client.post(
+                reverse("photo_upload_single", kwargs={"album_pk": self.album.pk}),
+                {"image": self.make_image_upload("lightbox-b.png")},
+            )
+
+        photo = Photo.objects.get(pk=first_response.json()["id"])
+
+        response = self.client.get(
+            reverse("photo_permalink", kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk}),
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="lightbox-shell"', html=False)
+        self.assertContains(response, 'hx-push-url="true"', html=False)
+        self.assertContains(response, 'hx-get=', html=False)
+        self.assertContains(response, str(photo.pk), html=False)
+
+        redirect_response = self.client.get(
+            reverse("photo_permalink", kwargs={"album_pk": self.album.pk, "photo_pk": photo.pk})
+        )
+        self.assertEqual(redirect_response.status_code, 302)
+        self.assertEqual(
+            redirect_response.url,
+            f"{reverse('album_detail', kwargs={'pk': self.album.pk})}#photo-{photo.pk}",
+        )
+
     def test_nonstaff_cannot_open_album_creation(self):
         regular_user = get_user_model().objects.create_user(
             username="album-viewer",

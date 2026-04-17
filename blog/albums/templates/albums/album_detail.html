@@ -62,6 +62,7 @@
     <div
       class="card photo-card"
       data-photo-id="{{ photo.pk }}"
+      data-photo-url="{% url 'photo_permalink' album.pk photo.pk %}"
       data-ready-photo="true"
       {% if user.is_staff %}draggable="true" ondragstart="beginDrag(event)" ondragend="endDrag(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)"{% endif %}
       onclick="handleCardClick(event, '{{ photo.pk }}')"
@@ -155,8 +156,8 @@
     </aside>
     <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
       <div style="position:absolute;inset:0;display:flex;z-index:1001">
-        <button type="button" aria-label="Previous photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto();"></button>
-        <button type="button" aria-label="Next photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); currentIndex = (currentIndex + 1) % photos.length; showPhoto();"></button>
+        <button id="lb-prev" type="button" aria-label="Previous photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); navigateLightbox(-1);"></button>
+        <button id="lb-next" type="button" aria-label="Next photo" style="flex:1;background:transparent;border:0;padding:0;cursor:pointer" onclick="event.stopPropagation(); navigateLightbox(1);"></button>
       </div>
       <img id="lb-img" style="max-height:calc(100vh - 3rem);object-fit:contain;border-radius:0" src="" alt="">
       <div id="lb-caption" style="margin-top:.75rem;color:#ccc;font-size:.95rem;text-align:center;max-width:90%"></div>
@@ -172,9 +173,11 @@ const readyPhotoPayloadById = new Map(readyPhotoPayloads.map((payload) => [paylo
 const isStaff = {{ user.is_staff|yesno:"true,false" }};
 const reorderUrl = "{% url 'photo_reorder' album.pk %}";
 const csrfToken = "{{ csrf_token }}";
+const albumUrl = "{{ album.get_absolute_url|escapejs }}";
 let photos = [];
 let currentIndex = 0;
 let lightboxTrigger = null;
+let lightboxPhotoUrl = "";
 let touchStartX = 0;
 let touchStartY = 0;
 const preloaded = new Set();
@@ -193,6 +196,9 @@ function refreshPhotoOrder(keepPhotoId = null) {
     currentIndex = nextIndex;
   } else if (currentIndex >= photos.length) {
     currentIndex = 0;
+  }
+  if (document.getElementById('lightbox').style.display !== 'none') {
+    syncLightboxNavigation();
   }
 }
 
@@ -250,6 +256,44 @@ function handleCardClick(event, photoId) {
   const photoIndex = photos.findIndex((photo) => photo.id === photoId);
   if (photoIndex < 0) return;
   openLightbox(photoIndex);
+}
+
+function setNavigationButtonState(button, photo) {
+  if (!button) return;
+  if (!photo) {
+    button.removeAttribute('hx-get');
+    button.removeAttribute('hx-target');
+    button.removeAttribute('hx-swap');
+    button.removeAttribute('hx-push-url');
+    button.dataset.photoId = '';
+    button.dataset.photoUrl = '';
+    return;
+  }
+  button.setAttribute('hx-get', photo.permalink_url);
+  button.setAttribute('hx-target', '#lightbox-shell');
+  button.setAttribute('hx-swap', 'outerHTML');
+  button.setAttribute('hx-push-url', 'true');
+  button.dataset.photoId = photo.id;
+  button.dataset.photoUrl = photo.permalink_url;
+}
+
+function syncLightboxNavigation() {
+  const prev = photos.length ? photos[(currentIndex - 1 + photos.length) % photos.length] : null;
+  const next = photos.length ? photos[(currentIndex + 1) % photos.length] : null;
+  setNavigationButtonState(document.getElementById('lb-prev'), prev);
+  setNavigationButtonState(document.getElementById('lb-next'), next);
+  lightboxPhotoUrl = (photos[currentIndex] && photos[currentIndex].permalink_url) || lightboxPhotoUrl;
+}
+
+function navigateLightbox(direction) {
+  const button = direction < 0 ? document.getElementById('lb-prev') : document.getElementById('lb-next');
+  if (button && button.getAttribute('hx-get')) {
+    button.click();
+    return;
+  }
+  if (!photos.length) return;
+  currentIndex = (currentIndex + direction + photos.length) % photos.length;
+  showPhoto();
 }
 
 function beginDrag(event) {
@@ -312,7 +356,8 @@ function openLightbox(i) {
 function closeLightbox() {
   document.getElementById('lightbox').style.display = 'none';
   document.body.style.overflow = '';
-  history.replaceState(null, '', location.pathname + location.search);
+  history.replaceState(null, '', albumUrl);
+  lightboxPhotoUrl = "";
   if (lightboxTrigger) {
     lightboxTrigger.focus();
     lightboxTrigger = null;
@@ -323,6 +368,7 @@ function showPhoto() {
   const p = photos[currentIndex];
   if (!p) return;
   const img = document.getElementById('lb-img');
+  const shell = document.getElementById('lightbox-shell');
   img.src = p.url;
   img.alt = p.alt_text || p.caption || ('Photo ' + (currentIndex + 1) + ' of ' + photos.length);
   if (p.url_small && p.url_medium) {
@@ -334,6 +380,13 @@ function showPhoto() {
   }
   document.getElementById('lb-caption').textContent = p.caption;
   document.getElementById('lb-counter').textContent = (currentIndex + 1) + ' / ' + photos.length;
+  lightboxPhotoUrl = p.permalink_url || lightboxPhotoUrl;
+  if (shell) {
+    shell.dataset.photoId = p.id;
+    shell.dataset.photoUrl = lightboxPhotoUrl;
+    shell.dataset.albumUrl = albumUrl;
+  }
+  syncLightboxNavigation();
   renderExif(p.exif || []);
   history.replaceState(null, '', '#photo-' + p.id);
   preloadAdjacentPhotos();
@@ -364,8 +417,7 @@ function preloadAdjacentPhotos() {
 
 async function copyPhotoLink() {
   const p = photos[currentIndex];
-  if (!p) return;
-  const url = location.origin + location.pathname + '#photo-' + p.id;
+  const url = lightboxPhotoUrl || (p && p.permalink_url) || location.href;
   const btn = document.getElementById('lb-copy-link');
   const succeed = () => {
     if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 2000); }
@@ -435,19 +487,30 @@ function handleLightboxClick(e) {
     const rect = document.getElementById('lightbox').getBoundingClientRect();
     const x = e.clientX - rect.left;
     if (x > rect.width / 2) {
-      currentIndex = (currentIndex + 1) % photos.length;
+      navigateLightbox(1);
     } else {
-      currentIndex = (currentIndex - 1 + photos.length) % photos.length;
+      navigateLightbox(-1);
     }
-    showPhoto();
   }
 }
+
+document.body.addEventListener('htmx:afterSwap', function(event) {
+  if (event.target && event.target.id === 'lightbox-shell') {
+    const photoId = event.target.dataset.photoId;
+    const nextIndex = photos.findIndex((photo) => photo.id === photoId);
+    if (nextIndex >= 0) {
+      currentIndex = nextIndex;
+      lightboxPhotoUrl = event.target.dataset.photoUrl || lightboxPhotoUrl;
+      preloadAdjacentPhotos();
+    }
+  }
+});
 
 document.addEventListener('keydown', function(e) {
   if (document.getElementById('lightbox').style.display === 'none') return;
   if (e.key === 'Escape') closeLightbox();
-  if (e.key === 'ArrowRight') { currentIndex = (currentIndex + 1) % photos.length; showPhoto(); }
-  if (e.key === 'ArrowLeft') { currentIndex = (currentIndex - 1 + photos.length) % photos.length; showPhoto(); }
+  if (e.key === 'ArrowRight') { navigateLightbox(1); }
+  if (e.key === 'ArrowLeft') { navigateLightbox(-1); }
 });
 
 refreshPhotoOrder();
@@ -464,10 +527,7 @@ savedOrderSignature = getOrderSignature();
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-      currentIndex = dx < 0
-        ? (currentIndex + 1) % photos.length
-        : (currentIndex - 1 + photos.length) % photos.length;
-      showPhoto();
+      navigateLightbox(dx < 0 ? 1 : -1);
     }
   }, { passive: true });
   // Focus trap: keep Tab cycling within the lightbox buttons

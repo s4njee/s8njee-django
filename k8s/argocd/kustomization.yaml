@@ -4,7 +4,9 @@ namespace: argocd
 resources:
   - argocd-image-updater-install.yaml
   - image-updater.yaml
+  - freya-image-updater.yaml
   - image-updater-registry-secret-rbac.yaml
+  - image-updater-registry-secret-rbac-freya.yaml
   - netcup-application.yaml
   - freya-application.yaml
   - argo-server-certificate.yaml

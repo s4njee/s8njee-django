@@ -46,14 +46,13 @@ class AlbumListView(ListView):
         return albums
 
 
-def album_detail(request, pk=None, slug=None):
-    if slug:
-        # get_object_or_404 turns an empty queryset into Django's Http404 response.
-        album = get_object_or_404(Album, slug=slug)
-    else:
-        album = get_object_or_404(Album, pk=pk)
+def _get_album_detail_payload(album):
     detail_cache_key = get_album_detail_cache_key(album.pk)
     detail_cache_payload = cache.get(detail_cache_key)
+    if detail_cache_payload is not None:
+        ready_photo_payloads = detail_cache_payload.get("ready_photo_payloads") or []
+        if ready_photo_payloads and "permalink_url" not in ready_photo_payloads[0]:
+            detail_cache_payload = None
     if detail_cache_payload is None:
         photos = list(album.photos.all())
         ready_photos = [photo for photo in photos if photo.status == PhotoStatus.READY and photo.image]
@@ -67,6 +66,7 @@ def album_detail(request, pk=None, slug=None):
         ready_photo_payloads = [
             {
                 "id": str(photo.pk),
+                "permalink_url": reverse("photo_permalink", kwargs={"album_pk": album.pk, "photo_pk": photo.pk}),
                 "url": photo.image.url,
                 "url_medium": photo.image_medium.url if photo.image_medium else "",
                 "url_small": photo.image_small.url if photo.image_small else "",
@@ -82,6 +82,43 @@ def album_detail(request, pk=None, slug=None):
             "ready_photo_payloads": ready_photo_payloads,
         }
         cache.set(detail_cache_key, detail_cache_payload, ALBUM_DETAIL_TTL)
+    return detail_cache_payload
+
+
+def _get_lightbox_context(album, detail_cache_payload, photo):
+    ready_photos = detail_cache_payload["ready_photos"]
+    current_index = next((index for index, item in enumerate(ready_photos) if item.pk == photo.pk), 0)
+    current_payload = detail_cache_payload["ready_photo_payloads"][current_index]
+    previous_photo = ready_photos[(current_index - 1) % len(ready_photos)] if ready_photos else None
+    next_photo = ready_photos[(current_index + 1) % len(ready_photos)] if ready_photos else None
+    return {
+        "album": album,
+        "photo": photo,
+        "photo_count": len(ready_photos),
+        "photo_index": current_index,
+        "current_photo_payload": current_payload,
+        "photo_permalink_url": reverse("photo_permalink", kwargs={"album_pk": album.pk, "photo_pk": photo.pk}),
+        "album_url": album.get_absolute_url(),
+        "previous_photo_url": (
+            reverse("photo_permalink", kwargs={"album_pk": album.pk, "photo_pk": previous_photo.pk})
+            if previous_photo and previous_photo.pk != photo.pk
+            else ""
+        ),
+        "next_photo_url": (
+            reverse("photo_permalink", kwargs={"album_pk": album.pk, "photo_pk": next_photo.pk})
+            if next_photo and next_photo.pk != photo.pk
+            else ""
+        ),
+    }
+
+
+def album_detail(request, pk=None, slug=None):
+    if slug:
+        # get_object_or_404 turns an empty queryset into Django's Http404 response.
+        album = get_object_or_404(Album, slug=slug)
+    else:
+        album = get_object_or_404(Album, pk=pk)
+    detail_cache_payload = _get_album_detail_payload(album)
     return render(
         # render combines the request, template, and context into an HttpResponse.
         request,
@@ -384,7 +421,14 @@ async def photo_status(request, album_pk, photo_pk):
 def photo_permalink(request, album_pk, photo_pk):
     """Redirect to the album detail page with the lightbox pre-opened for the given photo."""
     album = get_object_or_404(Album, pk=album_pk)
-    get_object_or_404(Photo, pk=photo_pk, album=album)
+    photo = get_object_or_404(Photo, pk=photo_pk, album=album)
+    detail_cache_payload = _get_album_detail_payload(album)
+    if request.headers.get("HX-Request") == "true":
+        return render(
+            request,
+            "albums/lightbox_shell.html",
+            _get_lightbox_context(album, detail_cache_payload, photo),
+        )
     url = reverse("album_detail", kwargs={"pk": album_pk})
     # HttpResponseRedirect is useful when the redirect target includes a hash fragment.
     return HttpResponseRedirect(f"{url}#photo-{photo_pk}")

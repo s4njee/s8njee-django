@@ -1,0 +1,63 @@
+<div
+  id="lightbox-shell"
+  data-photo-id="{{ photo.id }}"
+  data-photo-url="{{ photo_permalink_url }}"
+  data-album-url="{{ album_url }}"
+  style="position:absolute;inset:1rem;display:grid;grid-template-columns:280px minmax(0,1fr);gap:.25rem;align-items:stretch;justify-content:center"
+  onclick="event.stopPropagation()"
+>
+  <button id="lb-close" type="button" aria-label="Close photo viewer" style="position:absolute;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:1002;background:transparent;border:0;padding:.25rem .5rem;line-height:1" onclick="closeLightbox()">&times;</button>
+  <aside style="width:280px;height:calc(100vh - 2rem);box-sizing:border-box;background:#000;border:1px solid #222;border-radius:0;padding:1rem;color:#ddd;overflow:hidden;display:flex;flex-direction:column;cursor:default" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div id="lb-counter" style="color:#888;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase">{{ photo_index|add:1 }} / {{ photo_count }}</div>
+      <button id="lb-copy-link" type="button" onclick="copyPhotoLink()" style="background:transparent;border:1px solid #444;color:#aaa;font-size:.75rem;padding:.2rem .5rem;cursor:pointer;border-radius:2px;flex-shrink:0">Copy link</button>
+    </div>
+    <h2 id="lb-exif-title" style="font-size:1.15rem;margin:0 0 .75rem 0;color:#fff">EXIF</h2>
+    <div id="lb-exif-empty" style="{% if current_photo_payload.exif %}display:none{% else %}display:block{% endif %};color:#777;font-size:.9rem;line-height:1.5">No EXIF metadata found for this image.</div>
+    <dl id="lb-exif-list" style="margin:0;display:flex;flex-direction:column;gap:30px;flex:0 1 auto;overflow:auto">
+      {% if current_photo_payload.exif %}
+      {% for item in current_photo_payload.exif %}
+      <div style="display:flex;flex-direction:column;gap:2px;flex:0 0 auto">
+        <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1.05;margin:0;padding:0">{{ item.label }}</div>
+        <div style="margin:0;padding:0;font-size:.82rem;line-height:1.1;color:#e5e7eb;word-break:break-word">{{ item.value }}</div>
+        {% if item.label == "GPS" %}
+          <a href="https://www.google.com/maps/search/?api=1&query={{ item.value|urlencode }}" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:#2563eb;text-decoration:underline;margin-top:4px;display:inline-block">View on Map</a>
+        {% endif %}
+      </div>
+      {% empty %}
+      {% endfor %}
+      {% endif %}
+    </dl>
+  </aside>
+  <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
+    <div style="position:absolute;inset:0;display:flex;z-index:1001">
+      <button
+        id="lb-prev"
+        type="button"
+        aria-label="Previous photo"
+        {% if previous_photo_url %}hx-get="{{ previous_photo_url }}" hx-target="#lightbox-shell" hx-swap="outerHTML" hx-push-url="true"{% endif %}
+        style="flex:1;background:transparent;border:0;padding:0;cursor:pointer"
+        onclick="event.stopPropagation()"
+      ></button>
+      <button
+        id="lb-next"
+        type="button"
+        aria-label="Next photo"
+        {% if next_photo_url %}hx-get="{{ next_photo_url }}" hx-target="#lightbox-shell" hx-swap="outerHTML" hx-push-url="true"{% endif %}
+        style="flex:1;background:transparent;border:0;padding:0;cursor:pointer"
+        onclick="event.stopPropagation()"
+      ></button>
+    </div>
+    <img
+      id="lb-img"
+      style="max-height:calc(100vh - 3rem);object-fit:contain;border-radius:0"
+      src="{{ current_photo_payload.url }}"
+      {% if current_photo_payload.url_small and current_photo_payload.url_medium %}
+      srcset="{{ current_photo_payload.url_small }} 800w, {{ current_photo_payload.url_medium }} 1200w, {{ current_photo_payload.url }} 1920w"
+      sizes="(max-width: 640px) 100vw, calc(100vw - 360px)"
+      {% endif %}
+      alt="{{ current_photo_payload.alt_text|default:current_photo_payload.caption|default:album.title }}"
+    >
+    <div id="lb-caption" style="margin-top:.75rem;color:#ccc;font-size:.95rem;text-align:center;max-width:90%">{{ current_photo_payload.caption }}</div>
+  </section>
+</div>

@@ -1,0 +1,26 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: s8njee-web-freya
+  namespace: argocd
+spec:
+  commonUpdateSettings:
+    pullSecret: pullsecret:default/regcred
+    platforms:
+      - linux/amd64
+    updateStrategy: newest-build
+  writeBackConfig:
+    method: argocd
+  applicationRefs:
+    - namePattern: s8njee-web-freya
+      images:
+        - alias: s8njee-web
+          imageName: 192.168.1.248:5001/s8njee-web:20260413-074251-amd64
+          manifestTargets:
+            kustomize:
+              name: s8njee-web
+        - alias: s8njee-celery-worker
+          imageName: 192.168.1.248:5001/s8njee-web:20260413-074251-amd64
+          manifestTargets:
+            kustomize:
+              name: s8njee-celery-worker

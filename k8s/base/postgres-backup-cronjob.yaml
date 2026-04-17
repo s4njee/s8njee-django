@@ -21,11 +21,13 @@ spec:
             - name: backup
               image: s8njee-web:latest
               imagePullPolicy: IfNotPresent
+              env:
+                - name: DJANGO_SETTINGS_MODULE
+                  value: blog.settings.production
               command:
                 - /bin/sh
                 - -c
                 - |
-                  export DJANGO_SETTINGS_MODULE=blog.settings.production
                   DB_HOST="${S8NJEE_POSTGRES_SERVICE_HOST:-${DB_HOST:-}}"
                   DB_PORT="${S8NJEE_POSTGRES_SERVICE_PORT:-${DB_PORT:-5432}}"
                   export DB_HOST DB_PORT
