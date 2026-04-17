@@ -78,3 +78,15 @@ def process_photo(self, photo_id: str):
         photo.save(update_fields=["status", "error"])
         logger.exception("Failed to process photo %s", photo_id)
         raise
+
+
+@shared_task
+def delete_album_files(file_names: list[str]):
+    """Delete a list of S3/storage file paths asynchronously."""
+    from django.core.files.storage import default_storage
+
+    for name in file_names:
+        try:
+            default_storage.delete(name)
+        except Exception:
+            logger.exception("Failed to delete file %s", name)

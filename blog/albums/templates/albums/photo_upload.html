@@ -16,6 +16,7 @@
 
 <div id="controls" style="display:none;gap:1rem;align-items:center;margin-bottom:1.5rem">
   <button id="start-btn" class="btn" onclick="startUpload()">Upload <span id="file-count"></span> photos</button>
+  <button id="retry-all-btn" class="btn btn-secondary" onclick="retryAll()" style="display:none">Retry all failed</button>
   <button class="btn btn-secondary" onclick="clearQueue()">Clear</button>
   <span id="progress-text" style="color:#888;margin-left:1rem"></span>
 </div>
@@ -94,9 +95,11 @@ function renderItem(item, isRaw = false) {
 
 function updateControls() {
   const pending = queue.filter(q => q.status === "pending").length;
+  const failed = queue.filter(q => q.status === "error").length;
   const ctrl = document.getElementById("controls");
-  ctrl.style.display = pending > 0 || queue.some(q => q.status === "error") ? "flex" : "none";
+  ctrl.style.display = pending > 0 || failed > 0 ? "flex" : "none";
   document.getElementById("file-count").textContent = queue.filter(q => q.status === "pending" || q.status === "uploading").length;
+  document.getElementById("retry-all-btn").style.display = failed > 0 ? "inline-flex" : "none";
 }
 
 function refreshDoneState() {
@@ -154,16 +157,12 @@ function uploadFile(file, onProgress) {
     };
     xhr.onload = () => {
       let payload = {};
-      try {
-        payload = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch (err) {
-        payload = {};
-      }
+      try { payload = JSON.parse(xhr.responseText); } catch (_) {}
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(payload);
         return;
       }
-      reject(new Error(payload.error || xhr.statusText || `HTTP ${xhr.status}`));
+      reject(new Error(payload.error || `HTTP ${xhr.status}`));
     };
     xhr.onerror = () => reject(new Error("Network error"));
 
@@ -282,6 +281,22 @@ function retryUpload(id) {
   updateControls();
   refreshDoneState();
   uploadOne(item);
+}
+
+function retryAll() {
+  queue.filter(q => q.status === "error").forEach(item => {
+    item.status = "pending";
+    item.error = null;
+    const el = document.getElementById("item-" + item.id);
+    el.querySelector(".progress-fill").style.cssText += ";width:0%;background:#2563eb";
+    const statusEl = el.querySelector(".status");
+    statusEl.textContent = "Pending";
+    statusEl.style.color = "#888";
+    el.querySelector(".retry-btn").style.display = "none";
+  });
+  updateControls();
+  refreshDoneState();
+  startUpload();
 }
 
 function clearQueue() {
