@@ -364,10 +364,14 @@ class PhotoUploadAsyncTests(TestCase):
         image_path = photo.image.name
         thumbnail_path = photo.thumbnail.name
 
-        response = self.client.post(
-            reverse("album_delete", kwargs={"pk": self.album.pk}),
-            {"confirm": "on"},
-        )
+        # album_delete dispatches delete_album_files via transaction.on_commit,
+        # which never fires inside TestCase (no real commit). Patch it to run
+        # the callback immediately so file-deletion assertions work.
+        with patch("albums.views.transaction.on_commit", side_effect=lambda func: func()):
+            response = self.client.post(
+                reverse("album_delete", kwargs={"pk": self.album.pk}),
+                {"confirm": "on"},
+            )
 
         self.assertRedirects(response, reverse("album_list"))
         self.assertFalse(Album.objects.filter(pk=self.album.pk).exists())

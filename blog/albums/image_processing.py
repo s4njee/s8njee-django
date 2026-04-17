@@ -245,7 +245,19 @@ def extract_exif_summary(file_bytes: bytes) -> dict[str, str]:
     return summary
 
 
+def _is_tiff_based_raw(file_bytes: bytes) -> bool:
+    # TIFF-based RAW formats (NEF, CR2, DNG, ARW, ORF, RW2) all begin with the
+    # TIFF magic: "II" (little-endian) or "MM" (big-endian). A JPEG or PNG with
+    # a .nef extension will fail this check and be handled by Pillow instead.
+    return len(file_bytes) >= 2 and file_bytes[:2] in (b"II", b"MM")
+
+
 def _encode_raw_to_avif(filename: str, file_bytes: bytes) -> ContentFile:
+    if not _is_tiff_based_raw(file_bytes):
+        # Extension claims RAW but the bytes are a standard image (e.g. a JPEG
+        # saved as .nef). Fall through to the regular Pillow path.
+        return _encode_regular_image(filename, file_bytes)
+
     exif_bytes = _extract_exif_bytes(file_bytes)
     # rawpy passes the file to LibRaw's C layer, which needs a real file
     # descriptor — BytesIO causes spurious I/O errors on macOS and some Linux
