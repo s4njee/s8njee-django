@@ -47,11 +47,11 @@ spec:
               DB_HOST="${S8NJEE_POSTGRES_SERVICE_HOST:-${DB_HOST:-}}"
               DB_PORT="${S8NJEE_POSTGRES_SERVICE_PORT:-${DB_PORT:-5432}}"
               export DB_HOST DB_PORT
-              exec uv run celery -A blog worker --loglevel=info --concurrency=4
+              exec uv run celery -A blog worker --loglevel=info --concurrency=1
           resources:
             requests:
               cpu: 200m
-              memory: 512Mi
+              memory: 256Mi
             limits:
               cpu: "2"
               memory: 1Gi
