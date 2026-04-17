@@ -262,7 +262,7 @@ Freya uses:
 - Celery broker: `valkey` in the same namespace
 - Celery worker: `s8njee-celery-worker`
 
-Freya does have Argo CD installed. The `s8njee-web-freya` Argo CD Application manifest is at `k8s/argocd/freya-application.yaml`. Treat Freya as a manual dev deployment unless that application is actively synced.
+Freya does have Argo CD installed. The `s8njee-web-freya` Argo CD Application manifest is at `k8s/argocd/freya-application.yaml`. It tracks the `freya` branch, so Argo CD will only stay green when that branch exists and is pushed.
 
 For Freya-specific health checks:
 
@@ -276,7 +276,7 @@ curl -I http://192.168.1.248:4201/
 
 ### Freya Fast Dev Sync
 
-Freya's default app iteration strategy is source sync, not image rebuilds.
+Freya's default app iteration strategy is source sync, not image rebuilds. Argo CD manages the Kubernetes overlay, while source edits still ride through the hostPath sync path.
 
 The pod still starts from a normal app image so it has Python, `uv`, PostgreSQL client tools, and installed dependencies. The Freya overlay then mounts selected source directories from the Freya node with `hostPath`:
 
@@ -314,6 +314,14 @@ kubectl --context=freya rollout status deploy/s8njee-web -n default
 kubectl --context=freya rollout status deploy/s8njee-celery-worker -n default
 ```
 
+If you want Freya itself to be managed by Argo CD from Git, install the application and image updater once:
+
+```bash
+kubectl --context=freya apply -n argocd -f k8s/argocd/freya-application.yaml
+kubectl --context=freya apply -n argocd -f k8s/argocd/freya-image-updater.yaml
+kubectl --context=freya apply -n default -f k8s/argocd/image-updater-registry-secret-rbac-freya.yaml
+```
+
 Rebuild and push a Freya image only when changing dependencies, base runtime behavior, or files that are not mounted from the Freya host, such as:
 
 - `blog/Dockerfile`
@@ -322,6 +330,8 @@ Rebuild and push a Freya image only when changing dependencies, base runtime beh
 - system packages
 - entrypoint/startup behavior
 - files outside the mounted source directories
+
+If the Freya image tag changes, Argo CD Image Updater can write the new tag back into `k8s/overlays/freya/kustomization.yaml` once the Freya image-updater CR is installed.
 
 The quick decision rule is:
 

@@ -247,8 +247,15 @@ def extract_exif_summary(file_bytes: bytes) -> dict[str, str]:
 
 def _encode_raw_to_avif(filename: str, file_bytes: bytes) -> ContentFile:
     exif_bytes = _extract_exif_bytes(file_bytes)
-    with rawpy.imread(io.BytesIO(file_bytes)) as raw:
-        rgb = raw.postprocess()
+    # rawpy passes the file to LibRaw's C layer, which needs a real file
+    # descriptor — BytesIO causes spurious I/O errors on macOS and some Linux
+    # builds. Write to a named temp file and pass the path instead.
+    suffix = Path(filename).suffix or ".nef"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+        tmp.write(file_bytes)
+        tmp.flush()
+        with rawpy.imread(tmp.name) as raw:
+            rgb = raw.postprocess()
 
     img = Image.fromarray(rgb)
     img = downscale_if_needed(img)

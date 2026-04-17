@@ -7,6 +7,8 @@ resources:
   - valkey-deployment.yaml
   - valkey-service.yaml
   - celery-worker-deployment.yaml
+  - db-sync-backup-pvc.yaml
+  - db-sync-cronjob.yaml
   - sealed-secret.yaml
   - postgres-pvc.yaml
   - postgres-deployment.yaml

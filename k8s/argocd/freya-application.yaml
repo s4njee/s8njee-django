@@ -7,8 +7,9 @@ spec:
   project: default
   source:
     repoURL: https://github.com/s4njee/s8njee-django.git
-    targetRevision: main
+    targetRevision: freya
     path: k8s/overlays/freya
+    kustomize: {}
   destination:
     server: https://kubernetes.default.svc
     namespace: default

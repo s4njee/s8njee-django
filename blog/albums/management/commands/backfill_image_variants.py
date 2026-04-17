@@ -1,5 +1,6 @@
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from PIL import UnidentifiedImageError
 
 from albums.image_processing import make_image_variant
 from albums.models import Photo, PhotoStatus
@@ -42,7 +43,10 @@ class Command(BaseCommand):
                 photo.save(update_fields=changed_fields)
                 generated += 1
                 self.stdout.write(f"  [{i}/{total}] {photo.id}: generated {', '.join(changed_fields)}")
-            except Exception as exc:
+            except (OSError, UnidentifiedImageError) as exc:
+                # Narrow catch: storage misses and unreadable image data are
+                # legitimate "skip and keep going" cases for a backfill script.
+                # Unexpected exceptions should crash the command so bugs surface.
                 failed += 1
                 self.stderr.write(f"  [{i}/{total}] {photo.id}: FAILED — {exc}")
 

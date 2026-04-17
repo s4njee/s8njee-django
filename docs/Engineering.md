@@ -81,7 +81,7 @@ Argo CD watches the repo and reconciles `k8s/overlays/netcup` automatically. Ima
 
 ### Deploying to Freya
 
-Freya is optimised for fast iteration. Source files are rsynced directly to the node; the running container picks them up via `hostPath` mounts and Uvicorn's `--reload`.
+Freya is optimised for fast iteration. Source files are rsynced directly to the node; the running container picks them up via `hostPath` mounts and Uvicorn's `--reload`. The Kubernetes overlay itself is managed by Argo CD once the Freya application is installed.
 
 ```bash
 scripts/freya-sync.sh           # sync source files only
@@ -89,6 +89,14 @@ scripts/freya-sync.sh --rollout # sync + restart the web pod
 ```
 
 Only rebuild the Freya image when `blog/Dockerfile`, `blog/pyproject.toml`, or `blog/uv.lock` changes.
+
+To hand Freya over to Argo CD from Git, apply the application and image-updater manifests once. The Argo application targets the `freya` branch, so make sure that branch exists upstream:
+
+```bash
+kubectl --context=freya apply -n argocd -f k8s/argocd/freya-application.yaml
+kubectl --context=freya apply -n argocd -f k8s/argocd/freya-image-updater.yaml
+kubectl --context=freya apply -n default -f k8s/argocd/image-updater-registry-secret-rbac-freya.yaml
+```
 
 **Do not delete or rename the PVC `s8njee-postgres-data-freya`** unless you are intentionally replacing the Freya database.
 

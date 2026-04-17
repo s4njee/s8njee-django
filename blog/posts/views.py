@@ -149,13 +149,18 @@ class PostEditorImageUploadView(View):
         if uploaded_image.size > BLOG_IMAGE_MAX_BYTES:
             return JsonResponse({"error": "Images must be 10 MB or smaller."}, status=400)
 
+        # PIL's Image.verify() leaves the image object in an unusable state, so
+        # capture .format *before* verify() rather than reading it after — the old
+        # order happened to work because format is set during _open(), but it's
+        # fragile and the next Pillow release could break it.
         try:
             image = Image.open(uploaded_image)
+            image_format = image.format
             image.verify()
         except (UnidentifiedImageError, OSError):
             return JsonResponse({"error": "The uploaded file is not a supported image."}, status=400)
 
-        extension = BLOG_IMAGE_FORMAT_EXTENSIONS.get(image.format)
+        extension = BLOG_IMAGE_FORMAT_EXTENSIONS.get(image_format)
         if not extension:
             return JsonResponse({"error": "Use an AVIF, JPEG, PNG, GIF, or WebP image."}, status=400)
 

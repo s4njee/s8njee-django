@@ -7,6 +7,7 @@ from django.contrib.sitemaps.views import sitemap
 from posts.sitemaps import PostSitemap, AlbumSitemap, StaticViewSitemap
 from posts.feeds import LatestPostsFeed
 from posts.views import handler404 as custom_404, handler500 as custom_500
+from .views import login_redirect
 
 handler404 = custom_404
 handler500 = custom_500
@@ -21,6 +22,7 @@ sitemaps = {
 urlpatterns = [
     # path() maps URL patterns to views; include() delegates to app-level urls.py.
     path('admin/', admin.site.urls),
+    path('login/', login_redirect, name='login'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('robots.txt', TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),

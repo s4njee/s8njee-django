@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from django.core.cache import cache
@@ -9,6 +10,9 @@ from django.dispatch import receiver
 
 from .cache_keys import ALBUM_LIST_CACHE_KEY, get_album_detail_cache_key
 from .image_processing import extract_exif_summary, make_thumbnail_from_image_file
+
+
+logger = logging.getLogger(__name__)
 
 
 class PhotoStatus(models.TextChoices):
@@ -50,14 +54,17 @@ class Album(models.Model):
         return reverse("album_detail", kwargs={"pk": self.id})
 
     def cover_photo_for_display(self):
+        # Filter at the DB level: earlier versions iterated self.photos.all() in Python,
+        # which loaded every Photo row just to find the first READY one.
         cover = self.cover_photo
         if cover and cover.status == PhotoStatus.READY and cover.image:
             return cover
-
-        for photo in self.photos.all():
-            if photo.status == PhotoStatus.READY and photo.image:
-                return photo
-        return None
+        return (
+            self.photos.filter(status=PhotoStatus.READY)
+            .exclude(image="")
+            .only("id", "album_id", "image", "thumbnail", "sort_order", "uploaded_at")
+            .first()
+        )
 
 
 class Photo(models.Model):
@@ -124,9 +131,23 @@ class Photo(models.Model):
                         data = extract_exif_summary(source_file.read())
                     finally:
                         source_file.close()
-                except Exception:
+                except (OSError, ValueError):
+                    # OSError: storage backend failures (file missing, S3 404).
+                    # ValueError: malformed EXIF bytes. Anything else is a bug we want
+                    # to see in the logs rather than silently swallow.
+                    logger.warning("EXIF extraction failed for Photo %s", self.pk, exc_info=True)
                     data = {}
         return [{"label": label, "value": value} for label, value in data.items()]
+
+    def exif_captured_date(self):
+        captured = next(
+            (item["value"] for item in self.exif_display_items() if item["label"] == "Captured"),
+            "",
+        )
+        captured = str(captured).strip()
+        if len(captured) >= 10 and captured[4] == ":" and captured[7] == ":":
+            return captured[:10].replace(":", "-")
+        return captured.split(maxsplit=1)[0] if captured else ""
 
 
 @receiver([post_save, post_delete], sender=Album)

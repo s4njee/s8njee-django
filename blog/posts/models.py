@@ -1,7 +1,10 @@
+from django.core.cache import cache
 from django.db import models
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.urls import reverse
 
 from .markdown import render_markdown
 
@@ -40,3 +43,11 @@ class Post(models.Model):
     def rendered_content(self):
         # cached_property avoids re-rendering markdown multiple times per request.
         return render_markdown(self.content)
+
+
+# Keep the import local so test code that imports posts.models first doesn't
+# create a circular dependency through context_processors.
+@receiver([post_save, post_delete], sender=Post)
+def invalidate_archive_months_cache(sender, instance, **kwargs):
+    from .context_processors import ARCHIVE_MONTHS_CACHE_KEY
+    cache.delete(ARCHIVE_MONTHS_CACHE_KEY)

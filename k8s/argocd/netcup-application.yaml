@@ -9,6 +9,7 @@ spec:
     repoURL: https://github.com/s4njee/s8njee-django.git
     targetRevision: main
     path: k8s/overlays/netcup
+    kustomize: {}
   destination:
     server: https://kubernetes.default.svc
     namespace: s8njee-web

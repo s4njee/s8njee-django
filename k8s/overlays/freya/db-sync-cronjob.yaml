@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: s8njee-netcup-to-freya-db-sync
+spec:
+  schedule: "0 0 * * *"
+  timeZone: America/Chicago
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 172800
+      template:
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            kubernetes.io/hostname: freya
+          volumes:
+            - name: db-sync-scripts
+              hostPath:
+                path: /home/sanjee/tmp/s8njee-web/scripts
+                type: Directory
+            - name: kubeconfig
+              secret:
+                secretName: s8njee-db-sync-kubeconfig
+                defaultMode: 0444
+            - name: backups
+              persistentVolumeClaim:
+                claimName: s8njee-db-sync-backups
+          containers:
+            - name: sync
+              image: bitnami/kubectl:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: KUBECONFIG
+                  value: /kubeconfig/config
+                - name: BACKUP_DIR
+                  value: /backups
+              command:
+                - /bin/bash
+                - -lc
+                - /scripts/netcup-to-freya-db-sync.sh --yes
+              volumeMounts:
+                - name: db-sync-scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: kubeconfig
+                  mountPath: /kubeconfig
+                  readOnly: true
+                - name: backups
+                  mountPath: /backups
