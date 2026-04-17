@@ -20,8 +20,10 @@
     border-radius: 0;
     break-inside: avoid;
     display: inline-block;
+    line-height: 0;
     margin: 0 0 var(--album-masonry-gap);
-    overflow: visible;
+    overflow: hidden;
+    position: relative;
     width: 100%;
   }
   .album-masonry .photo-card:hover {
@@ -36,8 +38,24 @@
     object-fit: contain;
   }
   .album-masonry .photo-card .card-body {
-    background: transparent;
-    padding: .6rem 0 0;
+    background: rgba(0, 0, 0, .72);
+    bottom: 0;
+    left: 0;
+    line-height: 1.4;
+    opacity: 0;
+    padding: .5rem;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    transition: opacity .16s ease;
+    z-index: 2;
+  }
+  .album-masonry .photo-card:hover .card-body,
+  .album-masonry .photo-card:focus-within .card-body {
+    opacity: 1;
+  }
+  .album-masonry .photo-card .card-body * {
+    pointer-events: auto;
   }
   @supports (grid-template-rows: masonry) {
     .album-masonry {
