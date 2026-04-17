@@ -10,8 +10,9 @@
 {% block album_content %}
 <style>
   .album-masonry {
+    --album-masonry-gap: 4px;
     column-width: 220px;
-    column-gap: 1.25rem;
+    column-gap: var(--album-masonry-gap);
   }
   .album-masonry .photo-card {
     background: transparent;
@@ -19,7 +20,7 @@
     border-radius: 0;
     break-inside: avoid;
     display: inline-block;
-    margin: 0 0 1.25rem;
+    margin: 0 0 var(--album-masonry-gap);
     overflow: visible;
     width: 100%;
   }
@@ -43,7 +44,7 @@
       align-tracks: stretch;
       column-gap: 0;
       display: grid;
-      gap: 1.25rem;
+      gap: var(--album-masonry-gap);
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       grid-template-rows: masonry;
     }
@@ -55,10 +56,6 @@
   @media (max-width: 640px) {
     .album-masonry {
       column-width: 160px;
-      column-gap: 1rem;
-    }
-    .album-masonry .photo-card {
-      margin-bottom: 1rem;
     }
   }
   .photo-card[data-ready-photo="true"] { cursor: pointer; }
