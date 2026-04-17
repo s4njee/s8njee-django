@@ -59,6 +59,8 @@ def process_photo(self, photo_id: str):
 
         # Delete the staging original from storage now that processing is complete.
         # This is especially important for large RAW files (NEF, CR2, etc.).
+        # Narrow catch: storage errors shouldn't fail the whole task (we already
+        # produced the variants), but a non-IO error here is a real bug.
         if photo.original:
             original_name = photo.original.name
             try:
@@ -66,7 +68,7 @@ def process_photo(self, photo_id: str):
                 photo.original = None
                 photo.save(update_fields=["original"])
                 logger.info("Deleted original %s for photo %s", original_name, photo_id)
-            except Exception:
+            except OSError:
                 logger.exception("Failed to delete original %s for photo %s", original_name, photo_id)
 
         logger.info("Processed photo %s", photo_id)

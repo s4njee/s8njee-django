@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Adjusted BASE_DIR for settings/package structure

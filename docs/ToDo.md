@@ -264,6 +264,14 @@ Assumed scope for "feature complete":
 - [ ] Add explicit draft / published / hidden states for albums.
   Posts already have draft/published. Albums are public the moment they are created.
 
+### P2: Refactoring
+
+- [ ] Switch album CRUD views to CBVs.
+  `album_create`, `album_edit`, and `album_delete` in `blog/albums/views.py` are FBVs, while `AlbumListView` is a CBV. Convert to `CreateView` / `UpdateView` / `DeleteView` (with a `StaffRequiredMixin`) so the app uses one convention.
+
+- [ ] Version the album cache keys to force invalidation on schema changes.
+  `_get_album_detail_payload` in `blog/albums/views.py` currently detects stale cache entries by checking whether the first photo payload contains `permalink_url` — fragile and only catches that one specific shape change. Bake a version suffix into `ALBUM_LIST_CACHE_KEY` and `get_album_detail_cache_key` (e.g. `album_detail_v2_{pk}`); bumping the version in `blog/albums/cache_keys.py` then invalidates every stored payload atomically. Delete the ad-hoc staleness check once versioning is in place.
+
 ### P2: Testing And QA
 
 - [ ] Add automated tests for the blog: post list, post detail, archive filtering, published vs draft visibility.

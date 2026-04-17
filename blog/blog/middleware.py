@@ -1,4 +1,4 @@
-from .navigation import LAST_PAGE_SESSION_KEY
+from .navigation import LAST_PAGE_COOKIE, LAST_PAGE_COOKIE_MAX_AGE, sign_last_page
 
 
 class LastPageMiddleware:
@@ -17,7 +17,16 @@ class LastPageMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         if self._should_store(request, response):
-            request.session[LAST_PAGE_SESSION_KEY] = request.get_full_path()
+            # Signed cookie instead of session: no DB write per GET. Secure flag
+            # follows the request's scheme so local HTTP dev still sets the cookie.
+            response.set_cookie(
+                LAST_PAGE_COOKIE,
+                sign_last_page(request.get_full_path()),
+                max_age=LAST_PAGE_COOKIE_MAX_AGE,
+                secure=request.is_secure(),
+                httponly=True,
+                samesite="Lax",
+            )
         return response
 
     def _should_store(self, request, response):

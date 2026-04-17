@@ -119,19 +119,3 @@ class PhotoDeleteForm(forms.Form):
         required=True,
         label="I understand this will delete the photo and its files.",
     )
-
-
-class MultiPhotoForm(forms.Form):
-    """Form for uploading multiple photos at once, including RAW camera files."""
-    images = forms.FileField(
-        validators=[validate_photo_upload],
-        widget=forms.ClearableFileInput(),
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Widget attrs affect rendered HTML without changing server-side validation.
-        self.fields["images"].widget.attrs["multiple"] = True
-        self.fields["images"].widget.attrs["accept"] = (
-            "image/*,.nef,.cr2,.cr3,.dng,.arw,.orf,.raf,.rw2"
-        )
