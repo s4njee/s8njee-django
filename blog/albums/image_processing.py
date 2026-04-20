@@ -112,6 +112,8 @@ def _extract_exiftool_summary(file_bytes: bytes) -> dict[str, str]:
             lat_ref = "N" if lat_f >= 0 else "S"
             lon_ref = "E" if lon_f >= 0 else "W"
             summary["GPS"] = f"{abs(lat_f):.4f}° {lat_ref}, {abs(lon_f):.4f}° {lon_ref}"
+            summary["_lat"] = round(lat_f, 6)
+            summary["_lon"] = round(lon_f, 6)
         except (ValueError, TypeError):
             pass
 
@@ -239,6 +241,8 @@ def extract_exif_summary(file_bytes: bytes) -> dict[str, str]:
             lat_ref = "N" if lat >= 0 else "S"
             lon_ref = "E" if lon >= 0 else "W"
             summary["GPS"] = f"{abs(lat):.4f}° {lat_ref}, {abs(lon):.4f}° {lon_ref}"
+            summary["_lat"] = round(lat, 6)
+            summary["_lon"] = round(lon, 6)
         except Exception:
             pass
 

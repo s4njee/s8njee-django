@@ -444,6 +444,7 @@ function openLightbox(i) {
 }
 
 function closeLightbox() {
+  destroyLbMap();
   document.getElementById('lightbox').style.display = 'none';
   document.body.style.overflow = '';
   history.replaceState(null, '', albumUrl);
@@ -477,7 +478,7 @@ function showPhoto() {
     shell.dataset.albumUrl = albumUrl;
   }
   syncLightboxNavigation();
-  renderExif(p.exif || []);
+  renderExif(p.exif || [], p.lat, p.lon);
   history.replaceState(null, '', '#photo-' + p.id);
   preloadAdjacentPhotos();
 }
@@ -531,9 +532,44 @@ async function copyPhotoLink() {
   }
 }
 
-function renderExif(items) {
+let lbMap = null;
+let lbMapMarker = null;
+
+function destroyLbMap() {
+  if (lbMap) { lbMap.remove(); lbMap = null; lbMapMarker = null; }
+  const container = document.getElementById('lb-map-container');
+  if (container) container.remove();
+}
+
+function showLbMap(lat, lon, toggleBtn) {
+  destroyLbMap();
+  const wrapper = toggleBtn.closest('[data-gps-wrapper]');
+  const container = document.createElement('div');
+  container.id = 'lb-map-container';
+  container.style.cssText = 'width:100%;height:180px;margin-top:6px;border-radius:4px;overflow:hidden;border:1px solid #333';
+  wrapper.appendChild(container);
+  lbMap = L.map(container, { zoomControl: false, attributionControl: false }).setView([lat, lon], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+  }).addTo(lbMap);
+  lbMapMarker = L.marker([lat, lon]).addTo(lbMap);
+  toggleBtn.textContent = 'Hide Map';
+  setTimeout(function() { if (lbMap) lbMap.invalidateSize(); }, 50);
+}
+
+function toggleLbMap(lat, lon, toggleBtn) {
+  if (lbMap) {
+    destroyLbMap();
+    toggleBtn.textContent = 'Show Map';
+  } else {
+    showLbMap(lat, lon, toggleBtn);
+  }
+}
+
+function renderExif(items, lat, lon) {
   const list = document.getElementById('lb-exif-list');
   const empty = document.getElementById('lb-exif-empty');
+  destroyLbMap();
   list.innerHTML = '';
   if (!items.length) {
     empty.style.display = 'block';
@@ -555,17 +591,32 @@ function renderExif(items) {
     dt.appendChild(label);
     dt.appendChild(value);
 
-    if (item.label === "GPS") {
-        const coords = String(item.value).replace(/[^\d.NS EW,-]/g, '').replace(/[NSEW]/g, '').split(',');
-        if (coords.length === 2) {
-            const mapLink = document.createElement('a');
-            mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(item.value).replace(/°/g, ''))}`;
-            mapLink.target = '_blank';
-            mapLink.rel = 'noopener noreferrer';
-            mapLink.style.cssText = 'font-size:.75rem;color:#2563eb;text-decoration:underline;margin-top:4px;display:inline-block';
-            mapLink.textContent = 'View on Map';
-            dt.appendChild(mapLink);
-        }
+    if (item.label === "GPS" && lat != null && lon != null) {
+        dt.setAttribute('data-gps-wrapper', '');
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:4px';
+        const mapLink = document.createElement('a');
+        mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(String(item.value).replace(/°/g, ''));
+        mapLink.target = '_blank';
+        mapLink.rel = 'noopener noreferrer';
+        mapLink.style.cssText = 'font-size:.75rem;color:#2563eb;text-decoration:underline;display:inline-block';
+        mapLink.textContent = 'Google Maps';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.textContent = 'Show Map';
+        toggleBtn.style.cssText = 'font-size:.75rem;color:#2563eb;background:transparent;border:1px solid #333;padding:.15rem .4rem;cursor:pointer;border-radius:2px';
+        toggleBtn.onclick = function(e) { e.stopPropagation(); toggleLbMap(lat, lon, toggleBtn); };
+        btnRow.appendChild(mapLink);
+        btnRow.appendChild(toggleBtn);
+        dt.appendChild(btnRow);
+    } else if (item.label === "GPS") {
+        const mapLink = document.createElement('a');
+        mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(String(item.value).replace(/°/g, ''));
+        mapLink.target = '_blank';
+        mapLink.rel = 'noopener noreferrer';
+        mapLink.style.cssText = 'font-size:.75rem;color:#2563eb;text-decoration:underline;margin-top:4px;display:inline-block';
+        mapLink.textContent = 'View on Map';
+        dt.appendChild(mapLink);
     }
 
     list.appendChild(dt);
@@ -586,6 +637,7 @@ function handleLightboxClick(e) {
 
 document.body.addEventListener('htmx:afterSwap', function(event) {
   if (event.target && event.target.id === 'lightbox-shell') {
+    destroyLbMap();
     const photoId = event.target.dataset.photoId;
     const nextIndex = photos.findIndex((photo) => photo.id === photoId);
     if (nextIndex >= 0) {

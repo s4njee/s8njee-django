@@ -17,11 +17,18 @@
     <dl id="lb-exif-list" style="margin:0;display:flex;flex-direction:column;gap:30px;flex:0 1 auto;overflow:auto">
       {% if current_photo_payload.exif %}
       {% for item in current_photo_payload.exif %}
-      <div style="display:flex;flex-direction:column;gap:2px;flex:0 0 auto">
+      <div style="display:flex;flex-direction:column;gap:2px;flex:0 0 auto" {% if item.label == "GPS" and current_photo_payload.lat and current_photo_payload.lon %}data-gps-wrapper{% endif %}>
         <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;line-height:1.05;margin:0;padding:0">{{ item.label }}</div>
         <div style="margin:0;padding:0;font-size:.82rem;line-height:1.1;color:#e5e7eb;word-break:break-word">{{ item.value }}</div>
         {% if item.label == "GPS" %}
+          {% if current_photo_payload.lat and current_photo_payload.lon %}
+          <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+            <a href="https://www.google.com/maps/search/?api=1&query={{ item.value|urlencode }}" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:#2563eb;text-decoration:underline;display:inline-block">Google Maps</a>
+            <button type="button" onclick="event.stopPropagation(); toggleLbMap({{ current_photo_payload.lat }}, {{ current_photo_payload.lon }}, this)" style="font-size:.75rem;color:#2563eb;background:transparent;border:1px solid #333;padding:.15rem .4rem;cursor:pointer;border-radius:2px">Show Map</button>
+          </div>
+          {% else %}
           <a href="https://www.google.com/maps/search/?api=1&query={{ item.value|urlencode }}" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:#2563eb;text-decoration:underline;margin-top:4px;display:inline-block">View on Map</a>
+          {% endif %}
         {% endif %}
       </div>
       {% empty %}

@@ -137,7 +137,17 @@ class Photo(models.Model):
                     # to see in the logs rather than silently swallow.
                     logger.warning("EXIF extraction failed for Photo %s", self.pk, exc_info=True)
                     data = {}
-        return [{"label": label, "value": value} for label, value in data.items()]
+        # Keys prefixed with _ are internal (e.g. _lat, _lon) — not for display.
+        return [{"label": label, "value": value} for label, value in data.items() if not label.startswith("_")]
+
+    def gps_coordinates(self):
+        """Return (lat, lon) floats from stored EXIF data, or None."""
+        data = self.exif_data or {}
+        lat = data.get("_lat")
+        lon = data.get("_lon")
+        if lat is not None and lon is not None:
+            return (float(lat), float(lon))
+        return None
 
     def exif_captured_date(self):
         captured = next(

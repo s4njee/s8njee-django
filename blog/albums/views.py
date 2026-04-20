@@ -73,6 +73,8 @@ def _get_album_detail_payload(album):
                 "caption": photo.caption,
                 "alt_text": photo.alt_text,
                 "exif": photo.exif_display_items(),
+                "lat": (photo.gps_coordinates() or (None, None))[0],
+                "lon": (photo.gps_coordinates() or (None, None))[1],
             }
             for photo in ready_photos
         ]
