@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Album, Photo, PhotoStatus
+from .models import Album, Photo, PhotoStatus, Tag
 from .tasks import process_photo
 
 
@@ -57,8 +57,24 @@ retry_all_stuck_photos.short_description = "Retry ALL stuck photos (site-wide, >
 @admin.register(Photo)
 class PhotoAdmin(admin.ModelAdmin):
     # Admin list/search options operate through Django ORM fields and lookups.
-    list_display = ["__str__", "album", "sort_order", "status", "uploaded_at"]
+    list_display = ["__str__", "album", "sort_order", "status", "tag_list", "uploaded_at"]
     ordering = ["album", "sort_order", "-uploaded_at"]
-    list_filter = ["status", "uploaded_at"]
-    search_fields = ["caption", "album__title", "error"]
+    list_filter = ["status", "tags", "uploaded_at"]
+    search_fields = ["caption", "album__title", "error", "tags__name"]
+    filter_horizontal = ["tags"]
     actions = [retry_stuck_photos, retry_all_stuck_photos]
+
+    def tag_list(self, obj):
+        return ", ".join(t.name for t in obj.tags.all())
+    tag_list.short_description = "Tags"
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ["name", "slug", "photo_count"]
+    search_fields = ["name"]
+    prepopulated_fields = {"slug": ("name",)}
+
+    def photo_count(self, obj):
+        return obj.photos.count()
+    photo_count.short_description = "Photos"

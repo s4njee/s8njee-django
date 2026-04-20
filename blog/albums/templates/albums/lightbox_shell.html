@@ -35,6 +35,16 @@
       {% endfor %}
       {% endif %}
     </dl>
+    {% if current_photo_payload.tags %}
+    <div id="lb-tags" style="margin-top:auto;padding-top:.75rem;border-top:1px solid #222">
+      <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;margin-bottom:.4rem">Tags</div>
+      <div id="lb-tags-list" style="display:flex;flex-wrap:wrap;gap:.3rem">
+        {% for tag in current_photo_payload.tags %}
+        <span style="font-size:.72rem;background:#1f2937;color:#d1d5db;padding:.2rem .5rem;border-radius:3px;white-space:nowrap">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </aside>
   <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
     <div style="position:absolute;inset:0;display:flex;z-index:1001">

@@ -140,6 +140,12 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TIME_LIMIT = 600
 CELERY_TASK_SOFT_TIME_LIMIT = 540
 
+# LLM auto-tagging
+AUTO_TAG_ENABLED = env_bool('AUTO_TAG_ENABLED', False)
+AUTO_TAG_API_KEY = env('AUTO_TAG_API_KEY', '')
+AUTO_TAG_MODEL = env('AUTO_TAG_MODEL', 'gpt-4o-mini')
+AUTO_TAG_BASE_URL = env('AUTO_TAG_BASE_URL', '')  # Leave empty for OpenAI default
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",

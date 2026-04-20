@@ -54,7 +54,7 @@ def _get_album_detail_payload(album):
         if ready_photo_payloads and "permalink_url" not in ready_photo_payloads[0]:
             detail_cache_payload = None
     if detail_cache_payload is None:
-        photos = list(album.photos.all())
+        photos = list(album.photos.prefetch_related("tags").all())
         ready_photos = [photo for photo in photos if photo.status == PhotoStatus.READY and photo.image]
         ready_index = 0
         for photo in photos:
@@ -75,6 +75,7 @@ def _get_album_detail_payload(album):
                 "exif": photo.exif_display_items(),
                 "lat": (photo.gps_coordinates() or (None, None))[0],
                 "lon": (photo.gps_coordinates() or (None, None))[1],
+                "tags": [t.name for t in photo.tags.all()],
             }
             for photo in ready_photos
         ]

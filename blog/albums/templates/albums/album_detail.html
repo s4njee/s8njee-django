@@ -242,6 +242,10 @@
       <h2 id="lb-exif-title" style="font-size:1.15rem;margin:0 0 .75rem 0;color:#fff">EXIF</h2>
       <div id="lb-exif-empty" style="display:none;color:#777;font-size:.9rem;line-height:1.5">No EXIF metadata found for this image.</div>
       <dl id="lb-exif-list" style="margin:0;display:flex;flex-direction:column;gap:30px;flex:0 1 auto;overflow:auto"></dl>
+      <div id="lb-tags" style="margin-top:auto;padding-top:.75rem;border-top:1px solid #222;display:none">
+        <div style="font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#a3a3a3;margin-bottom:.4rem">Tags</div>
+        <div id="lb-tags-list" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>
+      </div>
     </aside>
     <section style="min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;position:relative;padding-left:.25rem;cursor:default">
       <div style="position:absolute;inset:0;display:flex;z-index:1001">
@@ -479,6 +483,7 @@ function showPhoto() {
   }
   syncLightboxNavigation();
   renderExif(p.exif || [], p.lat, p.lon);
+  renderTags(p.tags || []);
   history.replaceState(null, '', '#photo-' + p.id);
   preloadAdjacentPhotos();
 }
@@ -620,6 +625,24 @@ function renderExif(items, lat, lon) {
     }
 
     list.appendChild(dt);
+  }
+}
+
+function renderTags(tags) {
+  const container = document.getElementById('lb-tags');
+  const list = document.getElementById('lb-tags-list');
+  if (!tags.length) {
+    container.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+  container.style.display = 'block';
+  list.innerHTML = '';
+  for (const tag of tags) {
+    const chip = document.createElement('span');
+    chip.textContent = tag;
+    chip.style.cssText = 'font-size:.72rem;background:#1f2937;color:#d1d5db;padding:.2rem .5rem;border-radius:3px;white-space:nowrap';
+    list.appendChild(chip);
   }
 }
 

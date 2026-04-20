@@ -57,6 +57,11 @@ def process_photo(self, photo_id: str):
         # update_fields keeps this ORM write scoped to fields changed by processing.
         photo.save(update_fields=["image", "image_medium", "image_small", "thumbnail", "exif_data", "status", "error"])
 
+        # Kick off auto-tagging asynchronously (non-blocking, best-effort).
+        from django.conf import settings as django_settings
+        if django_settings.AUTO_TAG_ENABLED:
+            auto_tag_photo.delay(str(photo.pk))
+
         # Delete the staging original from storage now that processing is complete.
         # This is especially important for large RAW files (NEF, CR2, etc.).
         # Narrow catch: storage errors shouldn't fail the whole task (we already
@@ -90,3 +95,47 @@ def delete_album_files(file_names: list[str]):
             default_storage.delete(name)
         except Exception:
             logger.exception("Failed to delete file %s", name)
+
+
+@shared_task(
+    bind=True,
+    autoretry_for=(OSError, IOError),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 2},
+)
+def auto_tag_photo(self, photo_id: str):
+    """Send the small image variant to an LLM vision model and apply tags."""
+    from .tagging import apply_tags_to_photo, generate_tags_for_image
+
+    photo = Photo.objects.get(pk=photo_id)
+
+    if photo.tags.exists():
+        logger.info("Photo %s already has tags, skipping auto-tag", photo_id)
+        return
+
+    # Use the smallest variant to minimize token cost
+    image_field = photo.image_small or photo.image_medium or photo.image
+    if not image_field:
+        logger.warning("Photo %s has no image for auto-tagging", photo_id)
+        return
+
+    with image_field.open("rb") as fh:
+        image_bytes = fh.read()
+
+    # Determine content type from extension
+    name = (image_field.name or "").lower()
+    if name.endswith(".png"):
+        content_type = "image/png"
+    elif name.endswith(".webp"):
+        content_type = "image/webp"
+    elif name.endswith(".avif"):
+        content_type = "image/avif"
+    else:
+        content_type = "image/jpeg"
+
+    tag_names = generate_tags_for_image(image_bytes, content_type)
+    if tag_names:
+        apply_tags_to_photo(photo, tag_names)
+        logger.info("Auto-tagged photo %s with: %s", photo_id, tag_names)
+    else:
+        logger.info("No tags generated for photo %s", photo_id)
